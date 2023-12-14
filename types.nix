@@ -47,19 +47,19 @@ lib.fix(self: {
   listOf = t: assert isTypeDef t; let
     name = "listOf<${t.name}>";
     inherit (t) verify;
-    errorContext = "In ${name} element";
+    errorContext = "in ${name} element";
   in typedef name (v: if ! isList v then typeError name v else addErrorContext errorContext (all' verify v));
 
   attrsOf = t: assert isTypeDef t; let
     name = "attrsOf<${t.name}>";
     inherit (t) verify;
-    errorContext = "In ${name} value";
+    errorContext = "in ${name} value";
   in typedef name (v: if ! isAttrs v then typeError name v else addErrorContext errorContext (all' verify (attrValues v)));
 
   union = types: assert isList types; assert all isTypeDef types; let
     name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
     funcs = map (t: t.verify) types;
-  in typedef name (wrapBoolVerify name (v: any (func: func v == null) funcs));
+  in self.typedef name (v: any (func: func v == null) funcs);
 
   struct = name: { ... }@members: assert all isTypeDef (attrValues members); let
     names = attrNames members;

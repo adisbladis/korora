@@ -93,7 +93,7 @@ in
 
     testInvalidElem = {
       expr = (types.listOf types.str).verify [ 1 ];
-      expected = "In listOf<string> element: Expected type 'string' but value '1' is of type 'int'";
+      expected = "in listOf<string> element: Expected type 'string' but value '1' is of type 'int'";
     };
 
     testInvalidType = {
@@ -114,7 +114,7 @@ in
       expr = (types.attrsOf types.str).verify {
         x = 1;
       };
-      expected = "In attrsOf<string> value: Expected type 'string' but value '1' is of type 'int'";
+      expected = "in attrsOf<string> value: Expected type 'string' but value '1' is of type 'int'";
     };
 
     testInvalidType = {
