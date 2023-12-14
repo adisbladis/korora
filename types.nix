@@ -47,12 +47,14 @@ lib.fix(self: {
   listOf = t: assert isTypeDef t; let
     name = "listOf<${t.name}>";
     inherit (t) verify;
-  in typedef name (v: if ! isList v then typeError name v else addErrorContext "In ${name} element" (all' verify v));
+    errorContext = "In ${name} element";
+  in typedef name (v: if ! isList v then typeError name v else addErrorContext errorContext (all' verify v));
 
   attrsOf = t: assert isTypeDef t; let
     name = "attrsOf<${t.name}>";
     inherit (t) verify;
-  in typedef name (v: if ! isAttrs v then typeError name v else addErrorContext "In ${name} value" (all' verify (attrValues v)));
+    errorContext = "In ${name} value";
+  in typedef name (v: if ! isAttrs v then typeError name v else addErrorContext errorContext (all' verify (attrValues v)));
 
   union = types: assert isList types; assert all isTypeDef types; let
     name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
