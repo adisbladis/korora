@@ -2,10 +2,27 @@ let
   pkgs = import <nixpkgs> { };
   inherit (pkgs) lib;
 
+  inherit (lib) toUpper substring stringLength;
+
   types = import ./types.nix { inherit lib; };
 
+  capitalise = s: toUpper (substring 0 1 s) + (substring 1 (stringLength s) s);
+
+  addCoverage = public: tests: (
+    assert ! tests ? coverage;
+    tests // {
+      coverage = lib.mapAttrs' (n: v: {
+        name = "test" + (capitalise n);
+        value = {
+          expr = tests ? ${n};
+          expected = true;
+        };
+      }) tests;
+    }
+  );
+
 in
-{
+addCoverage types {
   string = {
     testInvalid = {
       expr = types.str.verify 1;
@@ -97,115 +114,121 @@ in
     };
   };
 
-  listOf = {
+  listOf = let
+    testListOf = types.listOf types.str;
+  in {
     testValid = {
-      expr = (types.listOf types.str).verify [ "hello" ];
+      expr = testListOf.verify [ "hello" ];
       expected = null;
     };
 
     testInvalidElem = {
-      expr = (types.listOf types.str).verify [ 1 ];
+      expr = testListOf.verify [ 1 ];
       expected = "in listOf<string> element: Expected type 'string' but value '1' is of type 'int'";
     };
 
     testInvalidType = {
-      expr = (types.listOf types.str).verify 1;
+      expr = testListOf.verify 1;
       expected = "Expected type 'listOf<string>' but value '1' is of type 'int'";
     };
   };
 
-  atrsOf = {
+  atrsOf = let
+    testAttrsOf = types.attrsOf types.str;
+  in {
     testValid = {
-      expr = (types.attrsOf types.str).verify {
+      expr = testAttrsOf.verify {
         x = "hello";
       };
       expected = null;
     };
 
     testInvalidElem = {
-      expr = (types.attrsOf types.str).verify {
+      expr = testAttrsOf.verify {
         x = 1;
       };
       expected = "in attrsOf<string> value: Expected type 'string' but value '1' is of type 'int'";
     };
 
     testInvalidType = {
-      expr = (types.attrsOf types.str).verify 1;
+      expr = testAttrsOf.verify 1;
       expected = "Expected type 'attrsOf<string>' but value '1' is of type 'int'";
     };
   };
 
-  union = {
+  union = let
+    testUnion = (types.union [ types.str ]);
+  in {
     testValid = {
-      expr = (types.union [ types.str ]).verify "hello";
+      expr = testUnion.verify "hello";
       expected = null;
     };
 
     testInvalid = {
-      expr = (types.union [ types.str ]).verify 1;
+      expr = testUnion.verify 1;
       expected = "Expected type 'union<string>' but value '1' is of type 'int'";
     };
   };
 
-  option = {
+  option = let
+    testOption = types.option types.str;
+  in {
     testValidString = {
-      expr = (types.option types.str).verify "hello";
+      expr = testOption.verify "hello";
       expected = null;
     };
 
     testNull = {
-      expr = (types.option types.str).verify null;
+      expr = testOption.verify null;
       expected = null;
     };
 
     testInvalid = {
-      expr = (types.option types.str).verify 3;
+      expr = testOption.verify 3;
       expected = "in option<string>: Expected type 'string' but value '3' is of type 'int'";
     };
   };
 
-  struct = {
+  struct = let
+    testStruct = types.struct "testStruct" {
+      foo = types.string;
+    };
+  in {
     testValid = {
-      expr = (types.struct "testStruct" {
-        foo = types.string;
-      }).verify {
+      expr = testStruct.verify {
         foo = "bar";
       };
       expected = null;
     };
 
     testMissingAttr = {
-      expr = (types.struct "testStruct" {
-        foo = types.string;
-      }).verify { };
+      expr = testStruct.verify { };
       expected = "in struct 'testStruct': missing member 'foo'";
     };
 
     testInvalidType = {
-      expr = (types.struct "testStruct" {
-        foo = types.string;
-      }).verify "bar";
+      expr = testStruct.verify "bar";
       expected = "in struct 'testStruct': Expected type 'testStruct' but value '\"bar\"' is of type 'string'";
     };
 
     testInvalidMember = {
-      expr = (types.struct "testStruct" {
-        foo = types.string;
-      }).verify {
+      expr = testStruct.verify {
         foo = 1;
       };
       expected = "in struct 'testStruct': in member 'foo': Expected type 'string' but value '1' is of type 'int'";
     };
   };
 
-  enum = {
+  enum = let
+    testEnum = types.enum "testEnum" [ "A" "B" "C" ];
+  in {
     testHasElem = {
-      expr = (types.enum "testEnum" [ "A" "B" "C" ]).verify "B";
+      expr = testEnum.verify "B";
       expected = null;
     };
 
     testNotHasElem = {
-      expr = (types.enum "testEnum" [ "A" "B" "C" ]).verify "nope";
+      expr = testEnum.verify "nope";
       expected = "'\"nope\"' is not a member of enum 'testEnum'";
     };
   };
