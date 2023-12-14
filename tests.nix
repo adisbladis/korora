@@ -18,6 +18,18 @@ in
     };
   };
 
+  function = {
+    testInvalid = {
+      expr = types.function.verify 1;
+      expected = "Expected type 'function' but value '1' is of type 'int'";
+    };
+
+    testValid = {
+      expr = types.function.verify (_: null);
+      expected = null;
+    };
+  };
+
   any = {
     testValid = {
       expr = types.any.verify (throw "NO U"); # Note: Value not checked

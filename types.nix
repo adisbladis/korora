@@ -29,6 +29,7 @@ lib.fix(self: {
 
   typedef' = name: verify: assert isString name; assert isFunction verify; {
     inherit name verify;
+    verifyThrow = v: if verify v == null then null else throw (verify v);
   };
 
   # Primitive types
@@ -41,6 +42,7 @@ lib.fix(self: {
   bool = self.typedef "bool" isBool;
   attrs = self.typedef "attrs" isAttrs;
   list = self.typedef "list" isList;
+  function = self.typedef "function" isFunction;
 
   # Composite types
 
@@ -73,9 +75,7 @@ lib.fix(self: {
   in self.typedef' name (
     v: addErrorContext "in struct '${name}'" (
       if ! isAttrs v then typeError name v
-      else all' (
-        attr: if ! v ? ${attr} then "missing member '${attr}'" else addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})
-      ) names
+      else all' (attr: if ! v ? ${attr} then "missing member '${attr}'" else addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})) names
     )
   );
 
