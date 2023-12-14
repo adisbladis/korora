@@ -1,0 +1,21 @@
+name: Nix actions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  nix-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v24
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build shell
+        run: nix develop -c true
+      - name: Run tests
+        run: nix develop -c nix-unit --flake .#libTests

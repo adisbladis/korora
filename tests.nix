@@ -1,10 +1,12 @@
-let
-  pkgs = import <nixpkgs> { };
-  inherit (pkgs) lib;
+{
+  pkgs ? import <nixpkgs> { }
+  , lib ? pkgs.lib
+}:
 
+let
   inherit (lib) toUpper substring stringLength;
 
-  types = import ./types.nix { inherit lib; };
+  types = import ./default.nix { inherit lib; };
 
   capitalise = s: toUpper (substring 0 1 s) + (substring 1 (stringLength s) s);
 

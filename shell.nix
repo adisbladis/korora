@@ -1,10 +1,7 @@
-let
-  pkgs = import <nixpkgs> { };
-in
+{ pkgs ? import <nixpkgs> { } }:
 pkgs.mkShell {
   packages = [
     pkgs.nix-unit
     pkgs.nixdoc
-    pkgs.mdbook
   ];
 }
