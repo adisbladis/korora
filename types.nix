@@ -1,6 +1,6 @@
 { lib }:
 let
-  inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames;
+  inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames elem;
   inherit (lib) findFirst nameValuePair listToAttrs;
 
   isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
@@ -78,4 +78,7 @@ lib.fix(self: {
       ) names
     )
   );
+
+  enum = name: elems: assert isList elems; typedef name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
+
 })

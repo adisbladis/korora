@@ -185,4 +185,16 @@ in
       expected = "in struct 'testStruct': in member 'foo': Expected type 'string' but value '1' is of type 'int'";
     };
   };
+
+  enum = {
+    testHasElem = {
+      expr = (types.enum "testEnum" [ "A" "B" "C" ]).verify "B";
+      expected = null;
+    };
+
+    testNotHasElem = {
+      expr = (types.enum "testEnum" [ "A" "B" "C" ]).verify "nope";
+      expected = "'\"nope\"' is not a member of enum 'testEnum'";
+    };
+  };
 }
