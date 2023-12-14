@@ -20,22 +20,22 @@ let
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
 
-  typedef = name: verify: assert isString name; assert isFunction verify; {
-    inherit name verify;
-  };
-
 in
 lib.fix(self: {
   # Utility functions
   typedef = name: verify: (
     # Wrap the private typedef function with one that takes a bool function and gives pretty error messages.
-    assert isString name; assert isFunction verify; typedef name (wrapBoolVerify name verify));
+    assert isString name; assert isFunction verify; self.typedef' name (wrapBoolVerify name verify));
+
+  typedef' = name: verify: assert isString name; assert isFunction verify; {
+    inherit name verify;
+  };
 
   # Primitive types
 
   string = self.typedef "string" isString;
   str = self.string;
-  any = typedef "any" (_: null);
+  any = self.typedef' "any" (_: null);
   int = self.typedef "int" isInt;
   float = self.typedef "float" isFloat;
   bool = self.typedef "bool" isBool;
@@ -48,19 +48,19 @@ lib.fix(self: {
     name = "option<${t.name}>";
     inherit (t) verify;
     errorContext = "in ${name}";
-  in typedef name (v: if v == null then null else addErrorContext errorContext (verify v));
+  in self.typedef' name (v: if v == null then null else addErrorContext errorContext (verify v));
 
   listOf = t: assert isTypeDef t; let
     name = "listOf<${t.name}>";
     inherit (t) verify;
     errorContext = "in ${name} element";
-  in typedef name (v: if ! isList v then typeError name v else addErrorContext errorContext (all' verify v));
+  in self.typedef' name (v: if ! isList v then typeError name v else addErrorContext errorContext (all' verify v));
 
   attrsOf = t: assert isTypeDef t; let
     name = "attrsOf<${t.name}>";
     inherit (t) verify;
     errorContext = "in ${name} value";
-  in typedef name (v: if ! isAttrs v then typeError name v else addErrorContext errorContext (all' verify (attrValues v)));
+  in self.typedef' name (v: if ! isAttrs v then typeError name v else addErrorContext errorContext (all' verify (attrValues v)));
 
   union = types: assert isList types; assert all isTypeDef types; let
     name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
@@ -70,7 +70,7 @@ lib.fix(self: {
   struct = name: members: assert isAttrs members; assert all isTypeDef (attrValues members); let
     names = attrNames members;
     verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
-  in typedef name (
+  in self.typedef' name (
     v: addErrorContext "in struct '${name}'" (
       if ! isAttrs v then typeError name v
       else all' (
@@ -79,6 +79,6 @@ lib.fix(self: {
     )
   );
 
-  enum = name: elems: assert isList elems; typedef name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
+  enum = name: elems: assert isList elems; self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
 
 })
