@@ -135,6 +135,23 @@ in
     };
   };
 
+  option = {
+    testValidString = {
+      expr = (types.option types.str).verify "hello";
+      expected = null;
+    };
+
+    testNull = {
+      expr = (types.option types.str).verify null;
+      expected = null;
+    };
+
+    testInvalid = {
+      expr = (types.option types.str).verify 3;
+      expected = "in option<string>: Expected type 'string' but value '3' is of type 'int'";
+    };
+  };
+
   struct = {
     testValid = {
       expr = (types.struct "testStruct" {

@@ -44,6 +44,12 @@ lib.fix(self: {
 
   # Composite types
 
+  option = t: assert isTypeDef t; let
+    name = "option<${t.name}>";
+    inherit (t) verify;
+    errorContext = "in ${name}";
+  in typedef name (v: if v == null then null else addErrorContext errorContext (verify v));
+
   listOf = t: assert isTypeDef t; let
     name = "listOf<${t.name}>";
     inherit (t) verify;
