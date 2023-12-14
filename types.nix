@@ -23,6 +23,7 @@ let
 in
 lib.fix(self: {
   # Utility functions
+
   typedef = name: verify: (
     # Wrap the private typedef function with one that takes a bool function and gives pretty error messages.
     assert isString name; assert isFunction verify; self.typedef' name (wrapBoolVerify name verify));
@@ -80,5 +81,4 @@ lib.fix(self: {
   );
 
   enum = name: elems: assert isList elems; self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
-
 })
