@@ -67,7 +67,7 @@ lib.fix(self: {
     funcs = map (t: t.verify) types;
   in self.typedef name (v: any (func: func v == null) funcs);
 
-  struct = name: { ... }@members: assert all isTypeDef (attrValues members); let
+  struct = name: members: assert isAttrs members; assert all isTypeDef (attrValues members); let
     names = attrNames members;
     verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
   in typedef name (
