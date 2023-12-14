@@ -20,24 +20,27 @@ let
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
 
-in
-lib.fix(self: let
-  inherit (self) typedef;
-in {
   typedef = name: verify: assert isString name; assert isFunction verify; {
     inherit name verify;
   };
 
+in
+lib.fix(self: {
+  # Utility functions
+  typedef = name: verify: (
+    # Wrap the private typedef function with one that takes a bool function and gives pretty error messages.
+    assert isString name; assert isFunction verify; typedef name (wrapBoolVerify name verify));
+
   # Primitive types
 
-  string = typedef "string" (wrapBoolVerify "string" isString);
+  string = self.typedef "string" isString;
   str = self.string;
   any = typedef "any" (_: null);
-  int = typedef "int" (wrapBoolVerify "int" isInt);
-  float = typedef "float" (wrapBoolVerify "float" isFloat);
-  bool = typedef "bool" (wrapBoolVerify "bool" isBool);
-  attrs = typedef "attrs" (wrapBoolVerify "attrs" isAttrs);
-  list = typedef "list" (wrapBoolVerify "list" isList);
+  int = self.typedef "int" isInt;
+  float = self.typedef "float" isFloat;
+  bool = self.typedef "bool" isBool;
+  attrs = self.typedef "attrs" isAttrs;
+  list = self.typedef "list" isList;
 
   # Composite types
 
