@@ -19,12 +19,12 @@ let
           expr = tests ? ${n};
           expected = true;
         };
-      }) tests;
+      }) public;
     }
   );
 
 in
-addCoverage types {
+lib.fix(self: addCoverage types {
   string = {
     testInvalid = {
       expr = types.str.verify 1;
@@ -34,6 +34,37 @@ addCoverage types {
     testValid = {
       expr = types.str.verify "Hello";
       expected = null;
+    };
+  };
+  str = self.string;
+
+  # Dummy out for coverage
+  typedef = {
+    testValid = {
+      expr = (types.typedef "testDef" (_: true)).name;
+      expected = "testDef";
+    };
+    testInvalidName = {
+      expr = types.typedef 1 null;
+      expectedError.type = "AssertionError";
+    };
+    testInvalidFunc = {
+      expr = types.typedef "testDef" "x";
+      expectedError.type = "AssertionError";
+    };
+  };
+  typedef' = {
+    testValid = {
+      expr = (types.typedef' "testDef" (_: true)).name;
+      expected = "testDef";
+    };
+    testInvalidName = {
+      expr = types.typedef' 1 null;
+      expectedError.type = "AssertionError";
+    };
+    testInvalidFunc = {
+      expr = types.typedef' "testDef" "x";
+      expectedError.type = "AssertionError";
     };
   };
 
@@ -152,7 +183,7 @@ addCoverage types {
     };
   };
 
-  atrsOf = let
+  attrsOf = let
     testAttrsOf = types.attrsOf types.str;
   in {
     testValid = {
@@ -251,4 +282,4 @@ addCoverage types {
       expected = "'\"nope\"' is not a member of enum 'testEnum'";
     };
   };
-}
+})
