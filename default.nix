@@ -237,16 +237,7 @@ lib.fix(self: {
     baz = "hello";
   }
   ```
-  is valid;
-
-  But
-  ``` nix
-  {
-    foo = 123;
-    baz = "hello";
-  }
-  ```
-  is not.
+  is normally valid, but not when `unknown` is set to `false`.
 
   Because Nix lacks primitive operations to iterative over attribute sets without
   allocation this function allocates one intermediate attribute set per struct verification.
