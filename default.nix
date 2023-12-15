@@ -9,6 +9,42 @@ A tiny & fast composable type system for Nix, in Nix.
   - Polymorphic types (`union`, `attrsOf`, etc)
   - Struct types
 
+# Basic usage
+
+- Verification
+
+Basic verification is done with the type function `verify`:
+``` nix
+{ korora }:
+let
+  t = korora.string;
+
+  value = 1;
+
+  # Error contains the string "Expected type 'string' but value '1' is of type 'int'"
+  error = t.verify 1;
+
+in if error != null then throw error else value
+```
+Errors are returned as a string.
+On success `null` is returned.
+
+- Checking (assertions)
+
+For convenience you can also check a value on-the-fly:
+``` nix
+{ korora }:
+let
+  t = korora.string;
+
+  # Same error as previous example, but `check` throws.
+  value = t.check 1;
+
+in value
+```
+
+On error `check` throws. On success it returns the value that was passed in.
+
 # Examples
 For usage example see [tests.nix](./tests.nix).
 
