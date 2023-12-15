@@ -1,3 +1,19 @@
+/*
+
+A tiny & fast composable type system for Nix, in Nix.
+
+# Features
+
+- Types
+  - Primive types (`string`, `int`, etc)
+  - Polymorphic types (`union`, `attrsOf`, etc)
+  - Struct types
+
+# Examples
+For usage example see [tests.nix](./tests.nix).
+
+# Reference
+*/
 { lib }:
 let
   inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs;
@@ -25,7 +41,7 @@ lib.fix(self: {
   # Utility functions
 
   /*
-  Declare a custom type.
+  Declare a custom type using a bool function.
   */
   typedef =
     # Name of the type as a string
@@ -35,7 +51,7 @@ lib.fix(self: {
     assert isString name; assert isFunction verify; self.typedef' name (wrapBoolVerify name verify);
 
   /*
-  Declare a custom type.
+  Declare a custom type using an option<str> function.
   */
   typedef' =
     # Name of the type as a string

@@ -9,6 +9,11 @@
     in
     {
       libTests = import ./tests.nix { inherit lib; };
+      lib = let
+        types = import ./default.nix { inherit lib; };
+      in types // {
+        inherit types;
+      };
     }
     //
     flake-utils.lib.eachDefaultSystem
