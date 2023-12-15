@@ -52,8 +52,8 @@ For usage example see [tests.nix](./tests.nix).
 */
 { lib }:
 let
-  inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs;
-  inherit (lib) findFirst nameValuePair;
+  inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs foldl';
+  inherit (lib) findFirst nameValuePair concatMapStringsSep escapeShellArg makeOverridable optional;
 
   isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
 
@@ -198,22 +198,117 @@ lib.fix(self: {
     in self.typedef name (v: any (func: func v == null) funcs);
 
   /*
-  union<name, members...>
+  struct<name, members...>
+
+  #### Features
+
+  - Totality
+
+  By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
+  ``` nix
+  (korora.struct "myStruct" {
+    foo = types.string;
+  }).override { total = false; }
+  ```
+
+  This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
+  ``` nix
+  let
+    s1 = { };
+    s2 = { foo = "bar"; }
+  in ...
+  ```
+
+  - Unknown attribute names
+
+  By default, unknown attribute names are allowed.
+
+  It is possible to override this by specifying `unknown`.
+  ``` nix
+  (korora.struct "myStruct" {
+    foo = types.string;
+  }).override { unknown = false; }
+  ```
+
+  This means that
+  ``` nix
+  {
+    foo = "bar";
+    baz = "hello";
+  }
+  ```
+  is valid;
+
+  But
+  ``` nix
+  {
+    foo = 123;
+    baz = "hello";
+  }
+  ```
+  is not.
+
+  Because Nix lacks primitive operations to iterative over attribute sets without
+  allocation this function allocates one intermediate attribute set per struct verification.
+
+  - Custom invariants
+
+  Custom struct verification functions can be added as such:
+  ``` nix
+  (types.struct "testStruct2" {
+    x = types.int;
+    y = types.int;
+  }).override {
+    extra = [
+      (v: if v.x + v.y == 2 then "VERBOTEN" else null)
+    ];
+  };
+  ```
+
+  #### Function signature
   */
   struct =
     # Name of struct type as a string
     name:
     # Attribute set of type definitions.
-    members: assert isAttrs members; assert all isTypeDef (attrValues members); let
-    names = attrNames members;
-    verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
-    errorContext = "in struct '${name}'";
-  in self.typedef' name (
-    v: addErrorContext errorContext (
-      if ! isAttrs v then typeError name v
-      else all' (attr: if ! v ? ${attr} then "missing member '${attr}'" else addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})) names
-    )
-  );
+    members:
+    assert isAttrs members; assert all isTypeDef (attrValues members); let
+      names = attrNames members;
+      verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
+      errorContext = "in struct '${name}'";
+
+      joinStr = concatMapStringsSep ", " escapeShellArg;
+      expectedAttrsStr = joinStr names;
+
+    in (makeOverridable ({
+      total ? true
+      , unknown ? true
+      , extra ? [ ]
+    }:
+    assert isBool total;
+    assert isBool unknown;
+    assert isList extra;
+    let
+      optionalFuncs =
+        optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
+        ++ extra;
+
+    in self.typedef' name (
+      v: addErrorContext errorContext (
+        if ! isAttrs v then typeError name v
+        else (
+          foldl'
+          (acc: verify: if acc != null then acc else verify v)
+          (all' (
+            attr:
+            if v ? ${attr} then addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})
+            else if total then "missing member '${attr}'"
+            else null
+          ) names)
+          optionalFuncs
+        )
+      )
+    ))) {};
 
   /*
   enum<name, elems...>

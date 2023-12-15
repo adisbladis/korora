@@ -155,7 +155,74 @@ union<types...>
 
 ## `lib.types.struct`
 
-union<name, members...>
+struct<name, members...>
+
+#### Features
+
+- Totality
+
+By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
+``` nix
+(korora.struct "myStruct" {
+  foo = types.string;
+}).override { total = false; }
+```
+
+This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
+``` nix
+let
+  s1 = { };
+  s2 = { foo = "bar"; }
+in ...
+```
+
+- Unknown attribute names
+
+By default, unknown attribute names are allowed.
+
+It is possible to override this by specifying `unknown`.
+``` nix
+(korora.struct "myStruct" {
+  foo = types.string;
+}).override { unknown = false; }
+```
+
+This means that
+``` nix
+{
+  foo = "bar";
+  baz = "hello";
+}
+```
+is valid;
+
+But
+``` nix
+{
+  foo = 123;
+  baz = "hello";
+}
+```
+is not.
+
+Because Nix lacks primitive operations to iterative over attribute sets without
+allocation this function allocates one intermediate attribute set per struct verification.
+
+- Custom invariants
+
+Custom struct verification functions can be added as such:
+``` nix
+(types.struct "testStruct2" {
+  x = types.int;
+  y = types.int;
+}).override {
+  extra = [
+    (v: if v.x + v.y == 2 then "VERBOTEN" else null)
+  ];
+};
+```
+
+#### Function signature
 
 `name`
 

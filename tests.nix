@@ -243,6 +243,19 @@ lib.fix(self: addCoverage types {
     testStruct = types.struct "testStruct" {
       foo = types.string;
     };
+
+    testStruct2 = (types.struct "testStruct2" {
+      x = types.int;
+      y = types.int;
+    }).override {
+      extra = [
+        (v: if v.x + v.y == 2 then "VERBOTEN" else null)
+      ];
+    };
+
+    testStructNonTotal = testStruct.override { total = false; };
+    testStructWithoutUnknown = testStruct.override { unknown = false; };
+
   in {
     testValid = {
       expr = testStruct.verify {
@@ -254,6 +267,35 @@ lib.fix(self: addCoverage types {
     testMissingAttr = {
       expr = testStruct.verify { };
       expected = "in struct 'testStruct': missing member 'foo'";
+    };
+
+    testNonTotal = {
+      expr = testStructNonTotal.verify {
+        foo = "bar";
+        unknown = "is allowed";
+      };
+      expected = null;
+    };
+
+    testExtraInvariantCheck = {
+      expr = testStruct2.verify { x = 1; y = 1; };
+      expected = "in struct 'testStruct2': VERBOTEN";
+    };
+
+    testUnknownAttrNotAllowed = {
+      expr = testStructWithoutUnknown.verify {
+        foo = "bar";
+        bar = "foo";
+      };
+      expected = "in struct 'testStruct': keys ['bar'] are unrecognized, expected keys are ['foo']";
+    };
+
+    testUnknownAttr = {
+      expr = testStruct.verify {
+        foo = "bar";
+        bar = "foo";
+      };
+      expected = null;
     };
 
     testInvalidType = {
