@@ -248,9 +248,7 @@ lib.fix(self: addCoverage types {
       x = types.int;
       y = types.int;
     }).override {
-      extra = [
-        (v: if v.x + v.y == 2 then "VERBOTEN" else null)
-      ];
+      extra = v: if v.x + v.y == 2 then "VERBOTEN" else null;
     };
 
     testStructNonTotal = testStruct.override { total = false; };

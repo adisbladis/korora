@@ -276,15 +276,15 @@ lib.fix(self: {
     in (makeOverridable ({
       total ? true
       , unknown ? true
-      , extra ? [ ]
+      , extra ? null
     }:
     assert isBool total;
     assert isBool unknown;
-    assert isList extra;
+    assert extra != null -> isFunction extra;
     let
       optionalFuncs =
         optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
-        ++ extra;
+        ++ optional (extra != null) extra;
 
     in self.typedef' name (
       v: addErrorContext errorContext (
