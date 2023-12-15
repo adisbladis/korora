@@ -1,11 +1,10 @@
 {
   description = "A simple & fast Nix type system implemented in Nix";
 
-  inputs.flake-utils.url = "github:numtide/flake-utils";
-
-  outputs = { self, nixpkgs, flake-utils }: (
+  outputs = { self, nixpkgs }: (
     let
       inherit (nixpkgs) lib;
+      forAllSystems = lib.genAttrs lib.systems.flakeExposed;
     in
     {
       libTests = import ./tests.nix { inherit lib; };
@@ -14,17 +13,18 @@
       in types // {
         inherit types;
       };
+
+      devShells =
+        forAllSystems
+        (
+          system:
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+          in
+          {
+            default = pkgs.callPackage ./shell.nix { };
+          }
+        );
     }
-    //
-    flake-utils.lib.eachDefaultSystem
-    (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        devShells.default = pkgs.callPackage ./shell.nix { };
-      }
-    )
   );
 }
