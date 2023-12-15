@@ -105,7 +105,7 @@ listOf<t>
 
 `t`
 
-: Attribute type
+: Attribute value type
 
 
 ## `lib.types.union`
@@ -114,7 +114,7 @@ union<types...>
 
 `types`
 
-: Any of list<t>
+: Any of listOf<t>
 
 
 ## `lib.types.struct`
@@ -128,7 +128,7 @@ union<name, members...>
 
 `members`
 
-: Member type definitions as an attribute set of types.
+: Attribute set of type definitions.
 
 
 ## `lib.types.enum`
@@ -142,6 +142,6 @@ enum<name, elems...>
 
 `elems`
 
-: Enum member can be any of elems
+: List of allowable enum members
 
 

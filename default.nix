@@ -144,7 +144,7 @@ lib.fix(self: {
   listOf<t>
   */
   attrsOf =
-    # Attribute type
+    # Attribute value type
     t: assert isTypeDef t; let
       name = "attrsOf<${t.name}>";
       inherit (t) verify;
@@ -155,7 +155,7 @@ lib.fix(self: {
   union<types...>
   */
   union =
-    # Any of list<t>
+    # Any of listOf<t>
     types: assert isList types; assert all isTypeDef types; let
       name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
@@ -167,7 +167,7 @@ lib.fix(self: {
   struct =
     # Name of struct type as a string
     name:
-    # Member type definitions as an attribute set of types.
+    # Attribute set of type definitions.
     members: assert isAttrs members; assert all isTypeDef (attrValues members); let
     names = attrNames members;
     verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
@@ -185,7 +185,7 @@ lib.fix(self: {
   enum =
     # Name of enum type as a string
     name:
-    # Enum member can be any of elems
+    # List of allowable enum members
     elems:
     assert isList elems; self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
 })
