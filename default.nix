@@ -2,6 +2,8 @@
 
 A tiny & fast composable type system for Nix, in Nix.
 
+Named after the [little penguin](https://www.doc.govt.nz/nature/native-animals/birds/birds-a-z/penguins/little-penguin-korora/).
+
 # Features
 
 - Types
