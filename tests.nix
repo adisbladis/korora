@@ -80,6 +80,23 @@ addCoverage types {
     };
   };
 
+  number = {
+    testInvalid = {
+      expr = types.number.verify "x";
+      expected = "Expected type 'number' but value '\"x\"' is of type 'string'";
+    };
+
+    testValidInt = {
+      expr = types.number.verify 1;
+      expected = null;
+    };
+
+    testValidFloat = {
+      expr = types.number.verify 1.0;
+      expected = null;
+    };
+  };
+
   bool = {
     testInvalid = {
       expr = types.bool.verify "x";

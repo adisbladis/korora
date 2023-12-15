@@ -5,7 +5,7 @@ A tiny & fast composable type system for Nix, in Nix.
 # Features
 
 - Types
-  - Primive types (`string`, `int`, etc)
+  - Primitive types (`string`, `int`, etc)
   - Polymorphic types (`union`, `attrsOf`, etc)
   - Struct types
 
@@ -89,6 +89,11 @@ lib.fix(self: {
   Single precision floating point
   */
   float = self.typedef "float" isFloat;
+
+  /*
+  Either an int or a float
+  */
+  number = self.typedef "number" (v: isInt v || isFloat v);
 
   /*
   Bool

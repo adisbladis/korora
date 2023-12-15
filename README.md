@@ -1,10 +1,10 @@
-# Kororā 
+# Kororā
 A tiny & fast composable type system for Nix, in Nix.
 
 # Features
 
 - Types
-  - Primive types (`string`, `int`, etc)
+  - Primitive types (`string`, `int`, etc)
   - Polymorphic types (`union`, `attrsOf`, etc)
   - Struct types
 
@@ -13,7 +13,7 @@ For usage example see [tests.nix](./tests.nix).
 
 # Reference
 
-## `lib.types.typedef` 
+## `lib.types.typedef`
 
 Declare a custom type using a bool function.
 
@@ -27,7 +27,7 @@ Declare a custom type using a bool function.
 : Verification function returning a bool.
 
 
-## `lib.types.typedef'` 
+## `lib.types.typedef'`
 
 Declare a custom type using an option<str> function.
 
@@ -41,43 +41,47 @@ Declare a custom type using an option<str> function.
 : Verification function returning null on success & a string with error message on error.
 
 
-## `lib.types.string` 
+## `lib.types.string`
 
 String
 
-## `lib.types.str` 
+## `lib.types.str`
 
 Type alias for string
 
-## `lib.types.any` 
+## `lib.types.any`
 
 Any
 
-## `lib.types.int` 
+## `lib.types.int`
 
 Int
 
-## `lib.types.float` 
+## `lib.types.float`
 
 Single precision floating point
 
-## `lib.types.bool` 
+## `lib.types.number`
+
+Either an int or a float
+
+## `lib.types.bool`
 
 Bool
 
-## `lib.types.attrs` 
+## `lib.types.attrs`
 
 Attribute with undefined attribute types
 
-## `lib.types.list` 
+## `lib.types.list`
 
 Attribute with undefined element types
 
-## `lib.types.function` 
+## `lib.types.function`
 
 Function
 
-## `lib.types.option` 
+## `lib.types.option`
 
 Option<t>
 
@@ -86,7 +90,7 @@ Option<t>
 : Null or t
 
 
-## `lib.types.listOf` 
+## `lib.types.listOf`
 
 listOf<t>
 
@@ -95,7 +99,7 @@ listOf<t>
 : Element type
 
 
-## `lib.types.attrsOf` 
+## `lib.types.attrsOf`
 
 listOf<t>
 
@@ -104,7 +108,7 @@ listOf<t>
 : Attribute type
 
 
-## `lib.types.union` 
+## `lib.types.union`
 
 union<types...>
 
@@ -113,7 +117,7 @@ union<types...>
 : Any of list<t>
 
 
-## `lib.types.struct` 
+## `lib.types.struct`
 
 union<name, members...>
 
@@ -127,7 +131,7 @@ union<name, members...>
 : Member type definitions as an attribute set of types.
 
 
-## `lib.types.enum` 
+## `lib.types.enum`
 
 enum<name, elems...>
 
