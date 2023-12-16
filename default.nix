@@ -286,20 +286,17 @@ lib.fix(self: {
         optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
         ++ optional (extra != null) extra;
 
+      verify = foldl' (acc: func: v: if acc v != null then acc v else func v) (v: all' (
+        attr:
+        if v ? ${attr} then addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})
+        else if total then "missing member '${attr}'"
+        else null
+      ) names) optionalFuncs;
+
     in self.typedef' name (
       v: addErrorContext errorContext (
         if ! isAttrs v then typeError name v
-        else (
-          foldl'
-          (acc: verify: if acc != null then acc else verify v)
-          (all' (
-            attr:
-            if v ? ${attr} then addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})
-            else if total then "missing member '${attr}'"
-            else null
-          ) names)
-          optionalFuncs
-        )
+        else verify v
       )
     ))) {};
 
