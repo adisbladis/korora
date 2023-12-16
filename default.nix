@@ -86,7 +86,9 @@ lib.fix(self: {
     name:
     # Verification function returning a bool.
     verify:
-    assert isString name; assert isFunction verify; self.typedef' name (wrapBoolVerify name verify);
+    assert isString name;
+    assert isFunction verify;
+    self.typedef' name (wrapBoolVerify name verify);
 
   /*
   Declare a custom type using an option<str> function.
@@ -96,7 +98,9 @@ lib.fix(self: {
     name:
     # Verification function returning null on success & a string with error message on error.
     verify:
-    assert isString name; assert isFunction verify; {
+    assert isString name;
+    assert isFunction verify;
+    {
       inherit name verify;
       check = v: if verify v == null then v else throw (verify v);
     };
@@ -161,7 +165,8 @@ lib.fix(self: {
   option =
     # Null or t
     t:
-    assert isTypeDef t; let
+    assert isTypeDef t;
+    let
       name = "option<${t.name}>";
       inherit (t) verify;
       errorContext = "in ${name}";
@@ -172,7 +177,9 @@ lib.fix(self: {
   */
   listOf =
     # Element type
-    t: assert isTypeDef t; let
+    t:
+    assert isTypeDef t;
+    let
       name = "listOf<${t.name}>";
       inherit (t) verify;
       errorContext = "in ${name} element";
@@ -183,7 +190,9 @@ lib.fix(self: {
   */
   attrsOf =
     # Attribute value type
-    t: assert isTypeDef t; let
+    t:
+    assert isTypeDef t;
+    let
       name = "attrsOf<${t.name}>";
       inherit (t) verify;
       errorContext = "in ${name} value";
@@ -194,7 +203,10 @@ lib.fix(self: {
   */
   union =
     # Any of listOf<t>
-    types: assert isList types; assert all isTypeDef types; let
+    types:
+    assert isList types;
+    assert all isTypeDef types;
+    let
       name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
     in self.typedef name (v: any (func: func v == null) funcs);
@@ -263,7 +275,9 @@ lib.fix(self: {
     name:
     # Attribute set of type definitions.
     members:
-    assert isAttrs members; assert all isTypeDef (attrValues members); let
+    assert isAttrs members;
+    assert all isTypeDef (attrValues members);
+    let
       names = attrNames members;
       verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
       errorContext = "in struct '${name}'";
@@ -306,5 +320,6 @@ lib.fix(self: {
     name:
     # List of allowable enum members
     elems:
-    assert isList elems; self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
+    assert isList elems;
+    self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
 })
