@@ -198,7 +198,7 @@ This means that
 ```
 is normally valid, but not when `unknown` is set to `false`.
 
-Because Nix lacks primitive operations to iterative over attribute sets without
+Because Nix lacks primitive operations to iterate over attribute sets without
 allocation this function allocates one intermediate attribute set per struct verification.
 
 - Custom invariants
@@ -209,9 +209,7 @@ Custom struct verification functions can be added as such:
   x = types.int;
   y = types.int;
 }).override {
-  extra = [
-    (v: if v.x + v.y == 2 then "VERBOTEN" else null)
-  ];
+  verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
 };
 ```
 

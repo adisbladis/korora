@@ -252,9 +252,7 @@ lib.fix(self: {
     x = types.int;
     y = types.int;
   }).override {
-    extra = [
-      (v: if v.x + v.y == 2 then "VERBOTEN" else null)
-    ];
+    verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
   };
   ```
 
@@ -276,17 +274,17 @@ lib.fix(self: {
     in (makeOverridable ({
       total ? true
       , unknown ? true
-      , extra ? null
+      , verify ? null
     }:
     assert isBool total;
     assert isBool unknown;
-    assert extra != null -> isFunction extra;
+    assert verify != null -> isFunction verify;
     let
       optionalFuncs =
         optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
-        ++ optional (extra != null) extra;
+        ++ optional (verify != null) verify;
 
-      verify = foldl' (acc: func: v: if acc v != null then acc v else func v) (v: all' (
+      verify' = foldl' (acc: func: v: if acc v != null then acc v else func v) (v: all' (
         attr:
         if v ? ${attr} then addErrorContext "in member '${attr}'" (verifiers.${attr} v.${attr})
         else if total then "missing member '${attr}'"
@@ -296,7 +294,7 @@ lib.fix(self: {
     in self.typedef' name (
       v: addErrorContext errorContext (
         if ! isAttrs v then typeError name v
-        else verify v
+        else verify' v
       )
     ))) {};
 
