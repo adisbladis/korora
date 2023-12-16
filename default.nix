@@ -241,7 +241,7 @@ lib.fix(self: {
   ```
   is normally valid, but not when `unknown` is set to `false`.
 
-  Because Nix lacks primitive operations to iterative over attribute sets without
+  Because Nix lacks primitive operations to iterate over attribute sets without
   allocation this function allocates one intermediate attribute set per struct verification.
 
   - Custom invariants
