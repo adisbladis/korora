@@ -323,7 +323,9 @@ lib.fix(self: {
 
       verify' =
         if optionalFuncs == [] then verifyAttrs
-        else v: foldl' (acc: func: if func v != null then func v else null) verifyAttrs optionalFuncs;
+        else let
+          allFuncs = [ verifyAttrs ] ++ optionalFuncs;
+        in v: foldl' (acc: func: if acc != null then acc else if func v != null then func v else null) null allFuncs;
 
     in self.typedef' name (
       v: addErrorContext errorContext (
