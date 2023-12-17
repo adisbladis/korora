@@ -298,25 +298,32 @@ lib.fix(self: {
         optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
         ++ optional (verify != null) verify;
 
+      # Turn member verifications into a list of verification functions with their verify functions
+      # already looked up & with error contexts already computed.
       verifyAttrs = let
         funcs =
           map
-          (attr:
-          let
-            verify = verifiers.${attr};
-            errorContext = "in member '${attr}'";
-            missingMember = "missing member '${attr}'";
-          in v: (
-            if v ? ${attr} then addErrorContext errorContext (verify v.${attr})
-            else if total then missingMember
-            else null
-          ))
+          (
+            attr:
+            let
+              verify = verifiers.${attr};
+              errorContext = "in member '${attr}'";
+              missingMember = "missing member '${attr}'";
+            in v: (
+              if v ? ${attr} then addErrorContext errorContext (verify v.${attr})
+              else if total then missingMember
+              else null
+            )
+          )
           names;
-      in v: all' (func: func v) funcs;
+      in v: if all (func: func v == null) funcs then null else (
+        # If an error was found, run the checks again to find the first error to return.
+        foldl' (acc: func: if acc != null then acc else if func v != null then func v else null) null funcs
+      );
 
       verify' =
         if optionalFuncs == [] then verifyAttrs
-        else foldl' (acc: func: v: if acc v != null then acc v else func v) verifyAttrs optionalFuncs;
+        else v: foldl' (acc: func: if func v != null then func v else null) verifyAttrs optionalFuncs;
 
     in self.typedef' name (
       v: addErrorContext errorContext (
