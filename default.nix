@@ -78,6 +78,7 @@ let
 
 in
 lib.fix(self: {
+
   # Utility functions
 
   /*
@@ -176,8 +177,8 @@ lib.fix(self: {
     let
       name = "option<${t.name}>";
       inherit (t) verify;
-      errorContext = "in ${name}";
-    in self.typedef' name (v: if v == null then null else addErrorContext errorContext (verify v));
+      withErrorContext = addErrorContext "in ${name}";
+    in self.typedef' name (v: if v == null then null else withErrorContext (verify v));
 
   /*
   listOf<t>
@@ -189,8 +190,8 @@ lib.fix(self: {
     let
       name = "listOf<${t.name}>";
       inherit (t) verify;
-      errorContext = "in ${name} element";
-    in self.typedef' name (v: if ! isList v then typeError name v else addErrorContext errorContext (all' verify v));
+      withErrorContext = addErrorContext "in ${name} element";
+    in self.typedef' name (v: if ! isList v then typeError name v else withErrorContext (all' verify v));
 
   /*
   listOf<t>
@@ -202,14 +203,14 @@ lib.fix(self: {
     let
       name = "attrsOf<${t.name}>";
       inherit (t) verify;
-      errorContext = "in ${name} value";
-    in self.typedef' name (v: if ! isAttrs v then typeError name v else addErrorContext errorContext (all' verify (attrValues v)));
+      withErrorContext = addErrorContext "in ${name} value";
+    in self.typedef' name (v: if ! isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v)));
 
   /*
   union<types...>
   */
   union =
-    # Any of listOf<t>
+    # Any of <t>
     types:
     assert isList types;
     assert all isTypeDef types;
@@ -287,7 +288,7 @@ lib.fix(self: {
     let
       names = attrNames members;
       verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
-      errorContext = "in struct '${name}'";
+      withErrorContext = addErrorContext "in struct '${name}'";
 
       joinStr = concatMapStringsSep ", " escapeShellArg;
       expectedAttrsStr = joinStr names;
@@ -314,10 +315,10 @@ lib.fix(self: {
             attr:
             let
               verify = verifiers.${attr};
-              errorContext = "in member '${attr}'";
+              withErrorContext = addErrorContext "in member '${attr}'";
               missingMember = "missing member '${attr}'";
             in v: (
-              if v ? ${attr} then addErrorContext errorContext (verify v.${attr})
+              if v ? ${attr} then withErrorContext (verify v.${attr})
               else if total then missingMember
               else null
             )
@@ -335,7 +336,7 @@ lib.fix(self: {
         in v: foldl' (acc: func: if acc != null then acc else if func v != null then func v else null) null allFuncs;
 
     in self.typedef' name (
-      v: addErrorContext errorContext (
+      v: withErrorContext (
         if ! isAttrs v then typeError name v
         else verify' v
       )
