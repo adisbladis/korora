@@ -220,6 +220,18 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  type = {
+    testValid = {
+      expr = types.type.verify types.string;
+      expected = null;
+    };
+
+    testInvalid = {
+      expr = types.type.verify { };
+      expected = "Expected type 'type' but value '{ }' is of type 'set'";
+    };
+  };
+
   option = let
     testOption = types.option types.str;
   in {

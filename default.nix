@@ -160,6 +160,11 @@ lib.fix(self: {
   # Polymorphic types
 
   /*
+  Type
+  */
+  type = self.typedef "type" (v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify);
+
+  /*
   Option<t>
   */
   option =
