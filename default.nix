@@ -39,8 +39,10 @@ For convenience you can also check a value on-the-fly:
 let
   t = korora.string;
 
+  value = 1;
+
   # Same error as previous example, but `check` throws.
-  value = t.check 1;
+  value = t.check value value;
 
 in value
 ```
@@ -102,7 +104,7 @@ lib.fix(self: {
     assert isFunction verify;
     {
       inherit name verify;
-      check = v: if verify v == null then v else throw (verify v);
+      check = v: v2: if verify v == null then v2 else throw (verify v);
     };
 
   # Primitive types
