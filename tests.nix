@@ -80,6 +80,18 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  path = {
+    testInvalid = {
+      expr = types.path.verify 1;
+      expected = "Expected type 'path' but value '1' is of type 'int'";
+    };
+
+    testValid = {
+      expr = types.path.verify ./.;
+      expected = null;
+    };
+  };
+
   any = {
     testValid = {
       expr = types.any.verify (throw "NO U"); # Note: Value not checked

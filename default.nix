@@ -56,8 +56,15 @@ For usage example see [tests.nix](./tests.nix).
 */
 { lib }:
 let
-  inherit (builtins) typeOf isString isFunction isAttrs isList all attrValues concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs foldl';
-  inherit (lib) findFirst nameValuePair concatMapStringsSep escapeShellArg makeOverridable optional;
+  inherit (builtins)
+    typeOf isString isFunction isAttrs isList all attrValues isPath
+    concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs foldl'
+    ;
+
+  inherit (lib)
+    findFirst nameValuePair concatMapStringsSep escapeShellArg
+    makeOverridable optional
+    ;
 
   isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
 
@@ -159,6 +166,11 @@ lib.fix(self: {
   Function
   */
   function = self.typedef "function" isFunction;
+
+  /*
+  Path
+  */
+  path = self.typedef "path" isPath;
 
   # Polymorphic types
 
