@@ -38,8 +38,10 @@ For convenience you can also check a value on-the-fly:
 let
   t = korora.string;
 
+  value = 1;
+
   # Same error as previous example, but `check` throws.
-  value = t.check 1;
+  value = t.check value value;
 
 in value
 ```
@@ -91,6 +93,10 @@ Type alias for string
 
 Any
 
+## `lib.types.never`
+
+Never
+
 ## `lib.types.int`
 
 Int
@@ -118,6 +124,18 @@ Attribute with undefined element types
 ## `lib.types.function`
 
 Function
+
+## `lib.types.path`
+
+Path
+
+## `lib.types.derivation`
+
+Derivation
+
+## `lib.types.type`
+
+Type
 
 ## `lib.types.option`
 
@@ -152,7 +170,16 @@ union<types...>
 
 `types`
 
-: Any of listOf<t>
+: Any of <t>
+
+
+## `lib.types.intersection`
+
+intersection<types...>
+
+`types`
+
+: All of <t>
 
 
 ## `lib.types.struct`
