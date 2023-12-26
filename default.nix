@@ -63,7 +63,7 @@ let
 
   inherit (lib)
     findFirst nameValuePair concatMapStringsSep escapeShellArg
-    makeOverridable optional
+    makeOverridable optional isDerivation
     ;
 
   isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
@@ -171,6 +171,11 @@ lib.fix(self: {
   Path
   */
   path = self.typedef "path" isPath;
+
+  /*
+  Derivation
+  */
+  derivation = self.typedef "derivation" isDerivation;
 
   # Polymorphic types
 

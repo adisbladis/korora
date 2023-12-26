@@ -92,6 +92,24 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  derivation = {
+    testInvalid = {
+      expr = types.derivation.verify { };
+      expected = "Expected type 'derivation' but value '{ }' is of type 'set'";
+    };
+
+    testValid = {
+      expr = types.derivation.verify (
+        builtins.derivation {
+          name = "test";
+          builder = ":";
+          system = "fake";
+        }
+      );
+      expected = null;
+    };
+  };
+
   any = {
     testValid = {
       expr = types.any.verify (throw "NO U"); # Note: Value not checked
