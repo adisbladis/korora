@@ -250,6 +250,31 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  intersection = let
+    struct1 = (types.struct "struct1" {
+      a = types.str;
+    });
+
+    struct2 = (types.struct "struct2" {
+      b = types.str;
+    });
+
+    testIntersection = (types.intersection [ struct1 struct2 ]);
+  in {
+    testValid = {
+      expr = testIntersection.verify {
+        a = "foo";
+        b = "bar";
+      };
+      expected = null;
+    };
+
+    testInvalid = {
+      expr = testIntersection.verify 1;
+      expected = "Expected type 'intersection<struct1,struct2>' but value '1' is of type 'int'";
+    };
+  };
+
   type = {
     testValid = {
       expr = types.type.verify types.string;

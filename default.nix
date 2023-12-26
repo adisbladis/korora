@@ -237,6 +237,19 @@ lib.fix(self: {
     in self.typedef name (v: any (func: func v == null) funcs);
 
   /*
+  intersection<types...>
+  */
+  intersection =
+    # All of <t>
+    types:
+    assert isList types;
+    assert all isTypeDef types;
+    let
+      name = "intersection<${concatStringsSep "," (map (t: t.name) types)}>";
+      funcs = map (t: t.verify) types;
+    in self.typedef name (v: all (func: func v == null) funcs);
+
+  /*
   struct<name, members...>
 
   #### Features
