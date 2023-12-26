@@ -117,6 +117,13 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  never = {
+    testInvalid = {
+      expr = types.never.verify 1234;
+      expected = "Expected type 'never' but value '1234' is of type 'int'";
+    };
+  };
+
   int = {
     testInvalid = {
       expr = types.int.verify "x";

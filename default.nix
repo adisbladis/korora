@@ -133,6 +133,11 @@ lib.fix(self: {
   any = self.typedef' "any" (_: null);
 
   /*
+  Never
+  */
+  never = self.typedef "never" (_: false);
+
+  /*
   Int
   */
   int = self.typedef "int" isInt;
