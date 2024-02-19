@@ -257,6 +257,13 @@ lib.fix(self: {
   /*
   struct<name, members...>
 
+  #### Example
+  ``` nix
+  korora.struct "myStruct" {
+    foo = types.string;
+  }
+  ```
+
   #### Features
 
   - Totality
