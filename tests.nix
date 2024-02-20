@@ -383,6 +383,37 @@ lib.fix(self: addCoverage types {
     };
   };
 
+  optionalAttr = let
+    testStruct = types.struct "testOptionalAttrStruct" {
+      foo = types.string;
+      optionalFoo = types.optionalAttr types.string;
+    };
+
+  in {
+    testWithOptional = {
+      expr = testStruct.verify {
+        foo = "hello";
+        optionalFoo = "goodbye";
+      };
+      expected = null;
+    };
+
+    testWithoutOptional = {
+      expr = testStruct.verify {
+        foo = "hello";
+      };
+      expected = null;
+    };
+
+    testWithInvalidOptional = {
+      expr = testStruct.verify {
+        foo = "hello";
+        optionalFoo = 1234;
+      };
+      expected = "in struct 'testOptionalAttrStruct': in member 'optionalFoo': in optionalAttr<string>: Expected type 'string' but value '1234' is of type 'int'";
+    };
+  };
+
   enum = let
     testEnum = types.enum "testEnum" [ "A" "B" "C" ];
   in {

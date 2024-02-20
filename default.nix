@@ -57,7 +57,7 @@ For usage example see [tests.nix](./tests.nix).
 { lib }:
 let
   inherit (builtins)
-    typeOf isString isFunction isAttrs isList all attrValues isPath
+    typeOf isString isFunction isAttrs isList all attrValues isPath head split
     concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs foldl'
     ;
 
@@ -113,6 +113,9 @@ lib.fix(self: {
     {
       inherit name verify;
       check = v: v2: if verify v == null then v2 else throw (verify v);
+
+      # The name of the type without polymorphic metadata
+      __name = head (split "<" name);
     };
 
   # Primitive types
@@ -356,12 +359,14 @@ lib.fix(self: {
           (
             attr:
             let
-              verify = verifiers.${attr};
+              memberType = members.${attr};
+              inherit (memberType) verify;
               withErrorContext = addErrorContext "in member '${attr}'";
               missingMember = "missing member '${attr}'";
+              isOptionalAttr = memberType.__name == "optionalAttr";
             in v: (
               if v ? ${attr} then withErrorContext (verify v.${attr})
-              else if total then missingMember
+              else if total && (!isOptionalAttr) then missingMember
               else null
             )
           )
@@ -383,6 +388,18 @@ lib.fix(self: {
         else verify' v
       )
     ))) {};
+
+  /*
+  optionalAttr<t>
+  */
+  optionalAttr =
+    t:
+    assert isTypeDef t;
+    let
+      name = "optionalAttr<${t.name}>";
+      inherit (t) verify;
+      withErrorContext = addErrorContext "in ${name}";
+    in self.typedef' name (v: withErrorContext (verify v));
 
   /*
   enum<name, elems...>
