@@ -58,11 +58,11 @@ For usage example see [tests.nix](./tests.nix).
 let
   inherit (builtins)
     typeOf isString isFunction isAttrs isList all attrValues isPath head split
-    concatStringsSep any isInt isFloat isBool attrNames elem listToAttrs foldl'
+    concatStringsSep any isInt isFloat isBool attrNames elem foldl'
     ;
 
   inherit (lib)
-    findFirst nameValuePair concatMapStringsSep escapeShellArg
+    findFirst concatMapStringsSep escapeShellArg
     makeOverridable optional isDerivation
     ;
 
@@ -329,10 +329,8 @@ lib.fix(self: {
     # Attribute set of type definitions.
     members:
     assert isAttrs members;
-    assert all isTypeDef (attrValues members);
     let
       names = attrNames members;
-      verifiers = listToAttrs (map (attr: nameValuePair attr members.${attr}.verify) names);
       withErrorContext = addErrorContext "in struct '${name}'";
 
       joinStr = concatMapStringsSep ", " escapeShellArg;
@@ -364,7 +362,7 @@ lib.fix(self: {
               withErrorContext = addErrorContext "in member '${attr}'";
               missingMember = "missing member '${attr}'";
               isOptionalAttr = memberType.__name == "optionalAttr";
-            in v: (
+            in assert isTypeDef memberType; v: (
               if v ? ${attr} then withErrorContext (verify v.${attr})
               else if total && (!isOptionalAttr) then missingMember
               else null
