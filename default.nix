@@ -1,69 +1,88 @@
 /*
+  A tiny & fast composable type system for Nix, in Nix.
 
-A tiny & fast composable type system for Nix, in Nix.
+  Named after the [little penguin](https://www.doc.govt.nz/nature/native-animals/birds/birds-a-z/penguins/little-penguin-korora/).
 
-Named after the [little penguin](https://www.doc.govt.nz/nature/native-animals/birds/birds-a-z/penguins/little-penguin-korora/).
+  # Features
 
-# Features
+  - Types
+    - Primitive types (`string`, `int`, etc)
+    - Polymorphic types (`union`, `attrsOf`, etc)
+    - Struct types
 
-- Types
-  - Primitive types (`string`, `int`, etc)
-  - Polymorphic types (`union`, `attrsOf`, etc)
-  - Struct types
+  # Basic usage
 
-# Basic usage
+  - Verification
 
-- Verification
+  Basic verification is done with the type function `verify`:
+  ``` nix
+  { korora }:
+  let
+    t = korora.string;
 
-Basic verification is done with the type function `verify`:
-``` nix
-{ korora }:
-let
-  t = korora.string;
+    value = 1;
 
-  value = 1;
+    # Error contains the string "Expected type 'string' but value '1' is of type 'int'"
+    error = t.verify 1;
 
-  # Error contains the string "Expected type 'string' but value '1' is of type 'int'"
-  error = t.verify 1;
+  in if error != null then throw error else value
+  ```
+  Errors are returned as a string.
+  On success `null` is returned.
 
-in if error != null then throw error else value
-```
-Errors are returned as a string.
-On success `null` is returned.
+  - Checking (assertions)
 
-- Checking (assertions)
+  For convenience you can also check a value on-the-fly:
+  ``` nix
+  { korora }:
+  let
+    t = korora.string;
 
-For convenience you can also check a value on-the-fly:
-``` nix
-{ korora }:
-let
-  t = korora.string;
+    value = 1;
 
-  value = 1;
+    # Same error as previous example, but `check` throws.
+    value = t.check value value;
 
-  # Same error as previous example, but `check` throws.
-  value = t.check value value;
+  in value
+  ```
 
-in value
-```
+  On error `check` throws. On success it returns the value that was passed in.
 
-On error `check` throws. On success it returns the value that was passed in.
+  # Examples
+  For usage example see [tests.nix](./tests.nix).
 
-# Examples
-For usage example see [tests.nix](./tests.nix).
-
-# Reference
+  # Reference
 */
 { lib }:
 let
   inherit (builtins)
-    typeOf isString isFunction isAttrs isList all attrValues isPath head split
-    concatStringsSep any isInt isFloat isBool attrNames elem foldl'
+    typeOf
+    isString
+    isFunction
+    isAttrs
+    isList
+    all
+    attrValues
+    isPath
+    head
+    split
+    concatStringsSep
+    any
+    isInt
+    isFloat
+    isBool
+    attrNames
+    elem
+    foldl'
     ;
 
   inherit (lib)
-    findFirst concatMapStringsSep escapeShellArg
-    makeOverridable optional isDerivation
+    findFirst
+    concatMapStringsSep
+    escapeShellArg
+    makeOverridable
+    optional
+    isDerivation
     ;
 
   isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
@@ -73,24 +92,29 @@ let
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
 
   # Builtin primitive checkers return a bool for indicating errors but we return option<str>
-  wrapBoolVerify = name: verify: v: if verify v then null else typeError name v;
+  wrapBoolVerify =
+    name: verify: v:
+    if verify v then null else typeError name v;
 
   # Wrap builtins.all to return option<str>, with string on error.
-  all' = func: list: if all (v: func v == null) list then null else (
-    # If an error was found, run the checks again to find the first error to return.
-    func (findFirst (v: func v != null) (abort "This should never ever happen") list)
-  );
+  all' =
+    func: list:
+    if all (v: func v == null) list then
+      null
+    else
+      (
+        # If an error was found, run the checks again to find the first error to return.
+        func (findFirst (v: func v != null) (abort "This should never ever happen") list)
+      );
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
 
 in
-lib.fix(self: {
+lib.fix (self: {
 
   # Utility functions
 
-  /*
-  Declare a custom type using a bool function.
-  */
+  # Declare a custom type using a bool function.
   typedef =
     # Name of the type as a string
     name:
@@ -100,9 +124,7 @@ lib.fix(self: {
     assert isFunction verify;
     self.typedef' name (wrapBoolVerify name verify);
 
-  /*
-  Declare a custom type using an option<str> function.
-  */
+  # Declare a custom type using an option<str> function.
   typedef' =
     # Name of the type as a string
     name:
@@ -120,81 +142,53 @@ lib.fix(self: {
 
   # Primitive types
 
-  /*
-  String
-  */
+  # String
   string = self.typedef "string" isString;
 
-  /*
-  Type alias for string
-  */
+  # Type alias for string
   str = self.string;
 
-  /*
-  Any
-  */
+  # Any
   any = self.typedef' "any" (_: null);
 
-  /*
-  Never
-  */
+  # Never
   never = self.typedef "never" (_: false);
 
-  /*
-  Int
-  */
+  # Int
   int = self.typedef "int" isInt;
 
-  /*
-  Single precision floating point
-  */
+  # Single precision floating point
   float = self.typedef "float" isFloat;
 
-  /*
-  Either an int or a float
-  */
+  # Either an int or a float
   number = self.typedef "number" (v: isInt v || isFloat v);
 
-  /*
-  Bool
-  */
+  # Bool
   bool = self.typedef "bool" isBool;
 
-  /*
-  Attribute with undefined attribute types
-  */
+  # Attribute with undefined attribute types
   attrs = self.typedef "attrs" isAttrs;
 
-  /*
-  Attribute with undefined element types
-  */
+  # Attribute with undefined element types
   list = self.typedef "list" isList;
 
-  /*
-  Function
-  */
+  # Function
   function = self.typedef "function" isFunction;
 
-  /*
-  Path
-  */
+  # Path
   path = self.typedef "path" isPath;
 
-  /*
-  Derivation
-  */
+  # Derivation
   derivation = self.typedef "derivation" isDerivation;
 
   # Polymorphic types
 
-  /*
-  Type
-  */
-  type = self.typedef "type" (v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify);
+  # Type
+  type = self.typedef "type" (
+    v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify
+  );
 
-  /*
-  Option<t>
-  */
+  # Option<t>
   option =
     # Null or t
     t:
@@ -203,11 +197,10 @@ lib.fix(self: {
       name = "option<${t.name}>";
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name}";
-    in self.typedef' name (v: if v == null then null else withErrorContext (verify v));
+    in
+    self.typedef' name (v: if v == null then null else withErrorContext (verify v));
 
-  /*
-  listOf<t>
-  */
+  # listOf<t>
   listOf =
     # Element type
     t:
@@ -216,11 +209,10 @@ lib.fix(self: {
       name = "listOf<${t.name}>";
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name} element";
-    in self.typedef' name (v: if ! isList v then typeError name v else withErrorContext (all' verify v));
+    in
+    self.typedef' name (v: if !isList v then typeError name v else withErrorContext (all' verify v));
 
-  /*
-  listOf<t>
-  */
+  # listOf<t>
   attrsOf =
     # Attribute value type
     t:
@@ -229,11 +221,12 @@ lib.fix(self: {
       name = "attrsOf<${t.name}>";
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name} value";
-    in self.typedef' name (v: if ! isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v)));
+    in
+    self.typedef' name (
+      v: if !isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v))
+    );
 
-  /*
-  union<types...>
-  */
+  # union<types...>
   union =
     # Any of <t>
     types:
@@ -242,11 +235,10 @@ lib.fix(self: {
     let
       name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
-    in self.typedef name (v: any (func: func v == null) funcs);
+    in
+    self.typedef name (v: any (func: func v == null) funcs);
 
-  /*
-  intersection<types...>
-  */
+  # intersection<types...>
   intersection =
     # All of <t>
     types:
@@ -255,73 +247,74 @@ lib.fix(self: {
     let
       name = "intersection<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
-    in self.typedef name (v: all (func: func v == null) funcs);
+    in
+    self.typedef name (v: all (func: func v == null) funcs);
 
   /*
-  struct<name, members...>
+    struct<name, members...>
 
-  #### Example
-  ``` nix
-  korora.struct "myStruct" {
-    foo = types.string;
-  }
-  ```
+    #### Example
+    ``` nix
+    korora.struct "myStruct" {
+      foo = types.string;
+    }
+    ```
 
-  #### Features
+    #### Features
 
-  - Totality
+    - Totality
 
-  By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
-  ``` nix
-  (korora.struct "myStruct" {
-    foo = types.string;
-  }).override { total = false; }
-  ```
+    By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
+    ``` nix
+    (korora.struct "myStruct" {
+      foo = types.string;
+    }).override { total = false; }
+    ```
 
-  This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
-  ``` nix
-  let
-    s1 = { };
-    s2 = { foo = "bar"; }
-  in ...
-  ```
+    This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
+    ``` nix
+    let
+      s1 = { };
+      s2 = { foo = "bar"; }
+    in ...
+    ```
 
-  - Unknown attribute names
+    - Unknown attribute names
 
-  By default, unknown attribute names are allowed.
+    By default, unknown attribute names are allowed.
 
-  It is possible to override this by specifying `unknown`.
-  ``` nix
-  (korora.struct "myStruct" {
-    foo = types.string;
-  }).override { unknown = false; }
-  ```
+    It is possible to override this by specifying `unknown`.
+    ``` nix
+    (korora.struct "myStruct" {
+      foo = types.string;
+    }).override { unknown = false; }
+    ```
 
-  This means that
-  ``` nix
-  {
-    foo = "bar";
-    baz = "hello";
-  }
-  ```
-  is normally valid, but not when `unknown` is set to `false`.
+    This means that
+    ``` nix
+    {
+      foo = "bar";
+      baz = "hello";
+    }
+    ```
+    is normally valid, but not when `unknown` is set to `false`.
 
-  Because Nix lacks primitive operations to iterate over attribute sets dynamically without
-  allocation this function allocates one intermediate attribute set per struct verification.
+    Because Nix lacks primitive operations to iterate over attribute sets dynamically without
+    allocation this function allocates one intermediate attribute set per struct verification.
 
-  - Custom invariants
+    - Custom invariants
 
-  Custom struct verification functions can be added as such:
-  ``` nix
-  (types.struct "testStruct2" {
-    x = types.int;
-    y = types.int;
-  }).override {
-    verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
-  };
-  ```
+    Custom struct verification functions can be added as such:
+    ``` nix
+    (types.struct "testStruct2" {
+      x = types.int;
+      y = types.int;
+    }).override {
+      verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
+    };
+    ```
 
-  #### Function signature
+    #### Function signature
   */
   struct =
     # Name of struct type as a string
@@ -336,60 +329,93 @@ lib.fix(self: {
       joinStr = concatMapStringsSep ", " escapeShellArg;
       expectedAttrsStr = joinStr names;
 
-    in (makeOverridable ({
-      total ? true
-      , unknown ? true
-      , verify ? null
-    }:
-    assert isBool total;
-    assert isBool unknown;
-    assert verify != null -> isFunction verify;
-    let
-      optionalFuncs =
-        optional (!unknown) (v: if removeAttrs v names == { } then null else "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]")
-        ++ optional (verify != null) verify;
-
-      # Turn member verifications into a list of verification functions with their verify functions
-      # already looked up & with error contexts already computed.
-      verifyAttrs = let
-        funcs =
-          map
-          (
-            attr:
-            let
-              memberType = members.${attr};
-              inherit (memberType) verify;
-              withErrorContext = addErrorContext "in member '${attr}'";
-              missingMember = "missing member '${attr}'";
-              isOptionalAttr = memberType.__name == "optionalAttr";
-            in assert isTypeDef memberType; v: (
-              if v ? ${attr} then withErrorContext (verify v.${attr})
-              else if total && (!isOptionalAttr) then missingMember
-              else null
-            )
+    in
+    (makeOverridable (
+      {
+        total ? true,
+        unknown ? true,
+        verify ? null,
+      }:
+      assert isBool total;
+      assert isBool unknown;
+      assert verify != null -> isFunction verify;
+      let
+        optionalFuncs =
+          optional (!unknown) (
+            v:
+            if removeAttrs v names == { } then
+              null
+            else
+              "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]"
           )
-          names;
-      in v: if all (func: func v == null) funcs then null else (
-        # If an error was found, run the checks again to find the first error to return.
-        foldl' (acc: func: if acc != null then acc else if func v != null then func v else null) null funcs
-      );
+          ++ optional (verify != null) verify;
 
-      verify' =
-        if optionalFuncs == [] then verifyAttrs
-        else let
-          allFuncs = [ verifyAttrs ] ++ optionalFuncs;
-        in v: foldl' (acc: func: if acc != null then acc else if func v != null then func v else null) null allFuncs;
+        # Turn member verifications into a list of verification functions with their verify functions
+        # already looked up & with error contexts already computed.
+        verifyAttrs =
+          let
+            funcs = map (
+              attr:
+              let
+                memberType = members.${attr};
+                inherit (memberType) verify;
+                withErrorContext = addErrorContext "in member '${attr}'";
+                missingMember = "missing member '${attr}'";
+                isOptionalAttr = memberType.__name == "optionalAttr";
+              in
+              assert isTypeDef memberType;
+              v:
+              (
+                if v ? ${attr} then
+                  withErrorContext (verify v.${attr})
+                else if total && (!isOptionalAttr) then
+                  missingMember
+                else
+                  null
+              )
+            ) names;
+          in
+          v:
+          if all (func: func v == null) funcs then
+            null
+          else
+            (
+              # If an error was found, run the checks again to find the first error to return.
+              foldl' (
+                acc: func:
+                if acc != null then
+                  acc
+                else if func v != null then
+                  func v
+                else
+                  null
+              ) null funcs
+            );
 
-    in self.typedef' name (
-      v: withErrorContext (
-        if ! isAttrs v then typeError name v
-        else verify' v
-      )
-    ))) {};
+        verify' =
+          if optionalFuncs == [ ] then
+            verifyAttrs
+          else
+            let
+              allFuncs = [ verifyAttrs ] ++ optionalFuncs;
+            in
+            v:
+            foldl' (
+              acc: func:
+              if acc != null then
+                acc
+              else if func v != null then
+                func v
+              else
+                null
+            ) null allFuncs;
 
-  /*
-  optionalAttr<t>
-  */
+      in
+      self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v))
+    ))
+      { };
+
+  # optionalAttr<t>
   optionalAttr =
     t:
     assert isTypeDef t;
@@ -397,16 +423,17 @@ lib.fix(self: {
       name = "optionalAttr<${t.name}>";
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name}";
-    in self.typedef' name (v: withErrorContext (verify v));
+    in
+    self.typedef' name (v: withErrorContext (verify v));
 
-  /*
-  enum<name, elems...>
-  */
+  # enum<name, elems...>
   enum =
     # Name of enum type as a string
     name:
     # List of allowable enum members
     elems:
     assert isList elems;
-    self.typedef' name (v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'");
+    self.typedef' name (
+      v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'"
+    );
 })
