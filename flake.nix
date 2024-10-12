@@ -1,6 +1,8 @@
 {
   description = "A simple & fast Nix type system implemented in Nix";
 
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
   outputs =
     { self, nixpkgs }:
     (
