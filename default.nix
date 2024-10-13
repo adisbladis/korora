@@ -114,7 +114,9 @@ lib.fix (self: {
 
   # Utility functions
 
-  # Declare a custom type using a bool function.
+  /*
+    Declare a custom type using a bool function
+  */
   typedef =
     # Name of the type as a string
     name:
@@ -124,7 +126,9 @@ lib.fix (self: {
     assert isFunction verify;
     self.typedef' name (wrapBoolVerify name verify);
 
-  # Declare a custom type using an option<str> function.
+  /*
+    Declare a custom type using an option<str> function.
+  */
   typedef' =
     # Name of the type as a string
     name:
@@ -142,53 +146,85 @@ lib.fix (self: {
 
   # Primitive types
 
-  # String
+  /*
+    String
+  */
   string = self.typedef "string" isString;
 
-  # Type alias for string
+  /*
+    Type alias for string
+  */
   str = self.string;
 
-  # Any
+  /*
+    Any
+  */
   any = self.typedef' "any" (_: null);
 
-  # Never
+  /*
+    Never
+  */
   never = self.typedef "never" (_: false);
 
-  # Int
+  /*
+    Int
+  */
   int = self.typedef "int" isInt;
 
-  # Single precision floating point
+  /*
+    Single precision floating point
+  */
   float = self.typedef "float" isFloat;
 
-  # Either an int or a float
+  /*
+    Either an int or a float
+  */
   number = self.typedef "number" (v: isInt v || isFloat v);
 
-  # Bool
+  /*
+    Bool
+  */
   bool = self.typedef "bool" isBool;
 
-  # Attribute with undefined attribute types
+  /*
+    Attribute with undefined attribute types
+  */
   attrs = self.typedef "attrs" isAttrs;
 
-  # Attribute with undefined element types
+  /*
+    Attribute with undefined element types
+  */
   list = self.typedef "list" isList;
 
-  # Function
+  /*
+    Function
+  */
   function = self.typedef "function" isFunction;
 
-  # Path
+  /*
+    Path
+  */
   path = self.typedef "path" isPath;
 
-  # Derivation
+  /*
+    Derivation
+  */
   derivation = self.typedef "derivation" isDerivation;
 
-  # Polymorphic types
+  /*
+    Polymorphic types
+  */
 
-  # Type
+  /*
+    Type
+  */
   type = self.typedef "type" (
     v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify
   );
 
-  # Option<t>
+  /*
+    Option<t>
+  */
   option =
     # Null or t
     t:
@@ -200,7 +236,9 @@ lib.fix (self: {
     in
     self.typedef' name (v: if v == null then null else withErrorContext (verify v));
 
-  # listOf<t>
+  /*
+    listOf<t>
+  */
   listOf =
     # Element type
     t:
@@ -212,7 +250,9 @@ lib.fix (self: {
     in
     self.typedef' name (v: if !isList v then typeError name v else withErrorContext (all' verify v));
 
-  # listOf<t>
+  /*
+    listOf<t>
+  */
   attrsOf =
     # Attribute value type
     t:
@@ -226,7 +266,9 @@ lib.fix (self: {
       v: if !isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v))
     );
 
-  # union<types...>
+  /*
+    union<types...>
+  */
   union =
     # Any of <t>
     types:
@@ -238,7 +280,9 @@ lib.fix (self: {
     in
     self.typedef name (v: any (func: func v == null) funcs);
 
-  # intersection<types...>
+  /*
+   intersection<types...>
+  */
   intersection =
     # All of <t>
     types:
@@ -415,7 +459,9 @@ lib.fix (self: {
     ))
       { };
 
-  # optionalAttr<t>
+  /*
+    optionalAttr<t>
+  */
   optionalAttr =
     t:
     assert isTypeDef t;
@@ -426,7 +472,9 @@ lib.fix (self: {
     in
     self.typedef' name (v: withErrorContext (verify v));
 
-  # enum<name, elems...>
+  /*
+    enum<name, elems...>
+  */
   enum =
     # Name of enum type as a string
     name:
