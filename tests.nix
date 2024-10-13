@@ -466,5 +466,74 @@ lib.fix (
           expected = "'\"nope\"' is not a member of enum 'testEnum'";
         };
       };
+
+    recursiveTypes = {
+      struct =
+        let
+          recursive = types.struct "recursive" {
+            children = types.optionalAttr (types.attrsOf (recursive));
+          };
+        in
+        {
+          testOK = {
+            expr = recursive.verify {
+              children = {
+                x = { };
+              };
+            };
+            expected = null;
+          };
+
+          testNotOK = {
+            expr = recursive.check {
+              children = {
+                x = "hello";
+              };
+            } null;
+            expectedError.type = "ThrownError";
+          };
+        };
+
+      attrsOf =
+        let
+          # Because attrsOf inherits names from it's sub-types we need to erase the name to not cause infinite recursion.
+          # This should have it's own exposed function.
+          type = types.attrsOf (
+            types.typedef' "eitherType"
+              (types.union [
+                types.string
+                type
+              ]).verify
+          );
+        in
+        {
+          testOK = {
+            expr = type.verify {
+              foo = "bar";
+              baz = {
+                foo = "bar";
+                baz = {
+                  foo = "bar";
+                };
+              };
+            };
+            expected = null;
+          };
+
+          testNotOK = {
+            expr = type.check {
+              foo = "bar";
+              baz = {
+                foo = "bar";
+                baz = {
+                  foo = "bar";
+                  int = 1;
+                };
+              };
+            } null;
+            expectedError.type = "ThrownError";
+          };
+        };
+    };
   }
 )
