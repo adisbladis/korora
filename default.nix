@@ -85,8 +85,6 @@ let
     isDerivation
     ;
 
-  isTypeDef = t: isAttrs t && t ? name && isString t.name && t ? verify && isFunction t.verify;
-
   toPretty = lib.generators.toPretty { indent = "    "; };
 
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
@@ -122,7 +120,6 @@ lib.fix (self: {
     name:
     # Verification function returning a bool.
     verify:
-    assert isString name;
     assert isFunction verify;
     self.typedef' name (wrapBoolVerify name verify);
 
@@ -134,7 +131,6 @@ lib.fix (self: {
     name:
     # Verification function returning null on success & a string with error message on error.
     verify:
-    assert isString name;
     assert isFunction verify;
     {
       inherit name verify;
@@ -228,7 +224,6 @@ lib.fix (self: {
   option =
     # Null or t
     t:
-    assert isTypeDef t;
     let
       name = "option<${t.name}>";
       inherit (t) verify;
@@ -242,7 +237,6 @@ lib.fix (self: {
   listOf =
     # Element type
     t:
-    assert isTypeDef t;
     let
       name = "listOf<${t.name}>";
       inherit (t) verify;
@@ -256,7 +250,6 @@ lib.fix (self: {
   attrsOf =
     # Attribute value type
     t:
-    assert isTypeDef t;
     let
       name = "attrsOf<${t.name}>";
       inherit (t) verify;
@@ -273,7 +266,6 @@ lib.fix (self: {
     # Any of <t>
     types:
     assert isList types;
-    assert all isTypeDef types;
     let
       name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
@@ -287,7 +279,6 @@ lib.fix (self: {
     # All of <t>
     types:
     assert isList types;
-    assert all isTypeDef types;
     let
       name = "intersection<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
@@ -407,7 +398,6 @@ lib.fix (self: {
                 missingMember = "missing member '${attr}'";
                 isOptionalAttr = memberType.__name == "optionalAttr";
               in
-              assert isTypeDef memberType;
               v:
               (
                 if v ? ${attr} then
@@ -464,7 +454,6 @@ lib.fix (self: {
   */
   optionalAttr =
     t:
-    assert isTypeDef t;
     let
       name = "optionalAttr<${t.name}>";
       inherit (t) verify;
