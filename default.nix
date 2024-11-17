@@ -74,18 +74,21 @@ let
     attrNames
     elem
     foldl'
+    elemAt
     ;
 
   inherit (lib)
-    findFirst
-    concatMapStringsSep
-    escapeShellArg
     makeOverridable
-    optional
-    isDerivation
+    generators
     ;
 
-  toPretty = lib.generators.toPretty { indent = "    "; };
+  isDerivation = value: isAttrs value && (value.type or null == "derivation");
+
+  optionalElem = cond: e: if cond then [ e ] else [ ];
+
+  joinKeys = list: concatStringsSep ", " (map (e: "'${e}'") list);
+
+  toPretty = generators.toPretty { indent = "    "; };
 
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
 
@@ -100,9 +103,17 @@ let
     if all (v: func v == null) list then
       null
     else
+      # If an error was found, run the checks again to find the first error to return.
       (
-        # If an error was found, run the checks again to find the first error to return.
-        func (findFirst (v: func v != null) (abort "This should never ever happen") list)
+        let
+          recurse =
+            i:
+            let
+              v = elemAt list i;
+            in
+            if func v != null then func v else recurse (i + 1);
+        in
+        recurse 0
       );
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
@@ -360,10 +371,6 @@ lib.fix (self: {
     let
       names = attrNames members;
       withErrorContext = addErrorContext "in struct '${name}'";
-
-      joinStr = concatMapStringsSep ", " escapeShellArg;
-      expectedAttrsStr = joinStr names;
-
     in
     (makeOverridable (
       {
@@ -376,14 +383,14 @@ lib.fix (self: {
       assert verify != null -> isFunction verify;
       let
         optionalFuncs =
-          optional (!unknown) (
+          optionalElem (!unknown) (
             v:
             if removeAttrs v names == { } then
               null
             else
-              "keys [${joinStr (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${expectedAttrsStr}]"
+              "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
           )
-          ++ optional (verify != null) verify;
+          ++ optionalElem (verify != null) verify;
 
         # Turn member verifications into a list of verification functions with their verify functions
         # already looked up & with error contexts already computed.

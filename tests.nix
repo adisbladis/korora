@@ -390,7 +390,7 @@ lib.fix (
             foo = "bar";
             bar = "foo";
           };
-          expected = "in struct 'testStruct': keys [bar] are unrecognized, expected keys are [foo]";
+          expected = "in struct 'testStruct': keys ['bar'] are unrecognized, expected keys are ['foo']";
         };
 
         testUnknownAttr = {
