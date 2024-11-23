@@ -53,7 +53,9 @@
 
   # Reference
 */
-{ lib }:
+{
+  lib ? null,
+}:
 let
   inherit (builtins)
     typeOf
@@ -77,18 +79,13 @@ let
     elemAt
     ;
 
-  inherit (lib)
-    makeOverridable
-    generators
-    ;
-
   isDerivation = value: isAttrs value && (value.type or null == "derivation");
 
   optionalElem = cond: e: if cond then [ e ] else [ ];
 
   joinKeys = list: concatStringsSep ", " (map (e: "'${e}'") list);
 
-  toPretty = generators.toPretty { indent = "    "; };
+  toPretty = (import ./lib.nix).toPretty { indent = "    "; };
 
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
 
@@ -123,9 +120,7 @@ lib.fix (self: {
 
   # Utility functions
 
-  /*
-    Declare a custom type using a bool function
-  */
+  # Declare a custom type using a bool function
   typedef =
     # Name of the type as a string
     name:
@@ -371,57 +366,76 @@ lib.fix (self: {
     let
       names = attrNames members;
       withErrorContext = addErrorContext "in struct '${name}'";
-    in
-    (makeOverridable (
-      {
-        total ? true,
-        unknown ? true,
-        verify ? null,
-      }:
-      assert isBool total;
-      assert isBool unknown;
-      assert verify != null -> isFunction verify;
-      let
-        optionalFuncs =
-          optionalElem (!unknown) (
+
+      mkStruct' =
+        {
+          total ? true,
+          unknown ? true,
+          verify ? null,
+        }:
+        assert isBool total;
+        assert isBool unknown;
+        assert verify != null -> isFunction verify;
+        let
+          optionalFuncs =
+            optionalElem (!unknown) (
+              v:
+              if removeAttrs v names == { } then
+                null
+              else
+                "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
+            )
+            ++ optionalElem (verify != null) verify;
+
+          # Turn member verifications into a list of verification functions with their verify functions
+          # already looked up & with error contexts already computed.
+          verifyAttrs =
+            let
+              funcs = map (
+                attr:
+                let
+                  memberType = members.${attr};
+                  inherit (memberType) verify;
+                  withErrorContext = addErrorContext "in member '${attr}'";
+                  missingMember = "missing member '${attr}'";
+                  isOptionalAttr = memberType.__name == "optionalAttr";
+                in
+                v:
+                (
+                  if v ? ${attr} then
+                    withErrorContext (verify v.${attr})
+                  else if total && (!isOptionalAttr) then
+                    missingMember
+                  else
+                    null
+                )
+              ) names;
+            in
             v:
-            if removeAttrs v names == { } then
+            if all (func: func v == null) funcs then
               null
             else
-              "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
-          )
-          ++ optionalElem (verify != null) verify;
+              (
+                # If an error was found, run the checks again to find the first error to return.
+                foldl' (
+                  acc: func:
+                  if acc != null then
+                    acc
+                  else if func v != null then
+                    func v
+                  else
+                    null
+                ) null funcs
+              );
 
-        # Turn member verifications into a list of verification functions with their verify functions
-        # already looked up & with error contexts already computed.
-        verifyAttrs =
-          let
-            funcs = map (
-              attr:
+          verify' =
+            if optionalFuncs == [ ] then
+              verifyAttrs
+            else
               let
-                memberType = members.${attr};
-                inherit (memberType) verify;
-                withErrorContext = addErrorContext "in member '${attr}'";
-                missingMember = "missing member '${attr}'";
-                isOptionalAttr = memberType.__name == "optionalAttr";
+                allFuncs = [ verifyAttrs ] ++ optionalFuncs;
               in
               v:
-              (
-                if v ? ${attr} then
-                  withErrorContext (verify v.${attr})
-                else if total && (!isOptionalAttr) then
-                  missingMember
-                else
-                  null
-              )
-            ) names;
-          in
-          v:
-          if all (func: func v == null) funcs then
-            null
-          else
-            (
-              # If an error was found, run the checks again to find the first error to return.
               foldl' (
                 acc: func:
                 if acc != null then
@@ -430,31 +444,15 @@ lib.fix (self: {
                   func v
                 else
                   null
-              ) null funcs
-            );
+              ) null allFuncs;
 
-        verify' =
-          if optionalFuncs == [ ] then
-            verifyAttrs
-          else
-            let
-              allFuncs = [ verifyAttrs ] ++ optionalFuncs;
-            in
-            v:
-            foldl' (
-              acc: func:
-              if acc != null then
-                acc
-              else if func v != null then
-                func v
-              else
-                null
-            ) null allFuncs;
-
-      in
-      self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v))
-    ))
-      { };
+        in
+        (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
+        // {
+          override = mkStruct';
+        };
+    in
+    mkStruct' { };
 
   /*
     optionalAttr<t>
