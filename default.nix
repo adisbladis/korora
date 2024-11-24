@@ -115,8 +115,15 @@ let
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
 
+  fix =
+    f:
+    let
+      x = f x;
+    in
+    x;
+
 in
-lib.fix (self: {
+fix (self: {
 
   # Utility functions
 
