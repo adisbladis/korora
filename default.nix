@@ -127,7 +127,9 @@ fix (self: {
 
   # Utility functions
 
-  # Declare a custom type using a bool function
+  /*
+    Declare a custom type using a bool function
+  */
   typedef =
     # Name of the type as a string
     name:
@@ -297,6 +299,25 @@ fix (self: {
       funcs = map (t: t.verify) types;
     in
     self.typedef name (v: all (func: func v == null) funcs);
+
+
+  /*
+    rename<name, type>
+
+    Because some polymorphic types such as attrsOf inherits names from it's
+    sub-types we need to erase the name to not cause infinite recursion.
+
+    #### Example:
+    ``` nix
+    myType = types.attrsOf (
+      types.rename "eitherType" (types.union [
+        types.string
+        myType
+      ])
+    );
+    ```
+  */
+  rename = name: type: self.typedef' name type.verify;
 
   /*
     struct<name, members...>

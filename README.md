@@ -182,6 +182,33 @@ intersection<types...>
 : All of <t>
 
 
+## `lib.types.rename`
+
+rename<name, type>
+
+Because some polymorphic types such as attrsOf inherits names from it's
+sub-types we need to erase the name to not cause infinite recursion.
+
+#### Example:
+``` nix
+myType = types.attrsOf (
+  types.rename "eitherType" (types.union [
+    types.string
+    myType
+  ])
+);
+```
+
+`name`
+
+: Function argument
+
+
+`type`
+
+: Function argument
+
+
 ## `lib.types.struct`
 
 struct<name, members...>

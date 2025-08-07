@@ -467,6 +467,21 @@ lib.fix (
         };
       };
 
+    rename = {
+      testRename = {
+        expr = let
+          t = types.rename "florp" types.string;
+        in {
+          inherit (t) name;
+          isFunction = builtins.isFunction t.verify;
+        };
+        expected = {
+          name = "florp";
+          isFunction = true;
+        };
+      };
+    };
+
     recursiveTypes = {
       struct =
         let
@@ -499,11 +514,11 @@ lib.fix (
           # Because attrsOf inherits names from it's sub-types we need to erase the name to not cause infinite recursion.
           # This should have it's own exposed function.
           type = types.attrsOf (
-            types.typedef' "eitherType"
+            types.rename "eitherType"
               (types.union [
                 types.string
                 type
-              ]).verify
+              ])
           );
         in
         {
