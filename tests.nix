@@ -16,7 +16,7 @@ let
       assert !tests ? coverage;
       tests
       // {
-        coverage = lib.mapAttrs' (n: v: {
+        coverage = lib.mapAttrs' (n: _v: {
           name = "test" + (capitalise n);
           value = {
             expr = tests ? ${n};
@@ -254,7 +254,7 @@ lib.fix (
 
     union =
       let
-        testUnion = (types.union [ types.str ]);
+        testUnion = types.union [ types.str ];
       in
       {
         testValid = {
@@ -270,24 +270,18 @@ lib.fix (
 
     intersection =
       let
-        struct1 = (
-          types.struct "struct1" {
-            a = types.str;
-          }
-        );
+        struct1 = types.struct "struct1" {
+          a = types.str;
+        };
 
-        struct2 = (
-          types.struct "struct2" {
-            b = types.str;
-          }
-        );
+        struct2 = types.struct "struct2" {
+          b = types.str;
+        };
 
-        testIntersection = (
-          types.intersection [
-            struct1
-            struct2
-          ]
-        );
+        testIntersection = types.intersection [
+          struct1
+          struct2
+        ];
       in
       {
         testValid = {
@@ -469,12 +463,14 @@ lib.fix (
 
     rename = {
       testRename = {
-        expr = let
-          t = types.rename "florp" types.string;
-        in {
-          inherit (t) name;
-          isFunction = builtins.isFunction t.verify;
-        };
+        expr =
+          let
+            t = types.rename "florp" types.string;
+          in
+          {
+            inherit (t) name;
+            isFunction = builtins.isFunction t.verify;
+          };
         expected = {
           name = "florp";
           isFunction = true;
@@ -486,7 +482,7 @@ lib.fix (
       struct =
         let
           recursive = types.struct "recursive" {
-            children = types.optionalAttr (types.attrsOf (recursive));
+            children = types.optionalAttr (types.attrsOf recursive);
           };
         in
         {
@@ -514,11 +510,12 @@ lib.fix (
           # Because attrsOf inherits names from it's sub-types we need to erase the name to not cause infinite recursion.
           # This should have it's own exposed function.
           type = types.attrsOf (
-            types.rename "eitherType"
-              (types.union [
+            types.rename "eitherType" (
+              types.union [
                 types.string
                 type
-              ])
+              ]
+            )
           );
         in
         {
