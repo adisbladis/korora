@@ -4,7 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
-    { nixpkgs }:
+    { nixpkgs, ... }:
     (
       let
         inherit (nixpkgs) lib;
