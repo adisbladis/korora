@@ -478,6 +478,40 @@ lib.fix (
       };
     };
 
+    tuple =
+      let
+        testTuple = types.tuple [
+          types.str
+          types.int
+        ];
+      in
+      {
+        testNotList = {
+          expr = testTuple.verify "xyz";
+          expected = "Expected type 'tuple<string, int>' but value '\"xyz\"' is of type 'string'";
+        };
+
+        testInvalidLength = {
+          expr = testTuple.verify [];
+          expected = "Expected tuple to have length 2 but value '[ ]' has length 0";
+        };
+
+        testInvalidType = {
+          expr = testTuple.verify [ 123 "xyz" ];
+          expected = "in tuple<string, int>: in element 0: Expected type 'string' but value '123' is of type 'int'";
+        };
+
+        testInvalidTypeTail = {
+          expr = testTuple.verify [ "xyz" "123" ];
+          expected = "in tuple<string, int>: in element 1: Expected type 'int' but value '\"123\"' is of type 'string'";
+        };
+
+        testValid = {
+          expr = testTuple.verify [ "xyz" 123 ];
+          expected = null;
+        };
+      };
+
     recursiveTypes = {
       struct =
         let
