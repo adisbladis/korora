@@ -512,6 +512,27 @@ lib.fix (
         };
       };
 
+    defun = let
+      fn = types.defun "fn" [ types.str ] types.str (s: s + "-checked");
+    in {
+      testOk = {
+        expr = fn "foo";
+        expected = "foo-checked";
+      };
+
+      testWrongArgType = {
+        expr = fn 1;
+        expectedError.type = "ThrownError";
+      };
+
+      testWrongArgReturn = let
+        fn = types.defun "fn" [ types.str ] types.str (_: 2);
+      in {
+        expr = fn "foo";
+        expectedError.type = "ThrownError";
+      };
+    };
+
     recursiveTypes = {
       struct =
         let

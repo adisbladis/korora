@@ -75,6 +75,7 @@ let
     foldl'
     elemAt
     length
+    genList
     ;
 
   isDerivation = value: isAttrs value && (value.type or null == "derivation");
@@ -528,4 +529,36 @@ fix (self: {
       else if (length v) != len then "Expected tuple to have length ${toString len} but value '${toPretty v}' has length ${toString (length v)}"
       else withErrorContext (verifyValue v 0)
     );
+
+  /**
+    Create a wrapped type checked function.
+  */
+  defun =
+    name: args: T: f:
+    let
+      errorPrefix = "while calling '${name}'";
+    in
+    foldl'
+      (
+        fun: idx:
+        let
+          type = elemAt args idx;
+        in
+        value:
+        if type.verify value != null then
+          throw "${errorPrefix}: while checking argument ${toString idx}: ${type.verify value}"
+        else
+          fun value
+      )
+      (
+        arg:
+        let
+          value = f arg;
+          err = T.verify value;
+        in
+        if err != null then throw "${errorPrefix}: while checking return type: ${err}" else value
+      )
+      (
+        genList (i: i) (length args)
+      );
 })
