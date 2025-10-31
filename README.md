@@ -310,3 +310,15 @@ enum<name, elems...>
 
 
 
+## `lib.types.defun`
+
+defun<name, args, returns, function>
+
+#### Example
+``` nix
+let
+  wrappedFunc = types.defun "fn" [ types.str ] types.str (s: s + "-checked");
+in
+  # Returns "foo-checked"
+  wrappedfunc "foo"
+```
