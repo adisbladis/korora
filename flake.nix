@@ -14,7 +14,7 @@
         libTests = import ./tests.nix { inherit lib; };
         lib =
           let
-            types = import ./default.nix { inherit lib; };
+            types = import ./types.nix;
           in
           types
           // {
