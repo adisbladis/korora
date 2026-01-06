@@ -222,6 +222,12 @@ fix (self: {
   path = self.typedef "path" isPath;
 
   /**
+    Value that may not technically be a path, but has path-like properties
+    Either an actual path `./foo`, a derivation, or a string
+  */
+  pathLike = self.typedef "pathLike" (v: isPath v || isDerivation v || isString v);
+
+  /**
     Derivation
   */
   derivation = self.typedef "derivation" isDerivation;
