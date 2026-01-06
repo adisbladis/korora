@@ -232,9 +232,7 @@ fix (self: {
   */
   derivation = self.typedef "derivation" isDerivation;
 
-  /**
-    Polymorphic types
-  */
+  # Polymorphic types
 
   /**
     Type
