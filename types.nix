@@ -197,6 +197,11 @@ fix (self: {
   bool = self.typedef "bool" isBool;
 
   /**
+    Null
+  */
+  null = self.typedef "null" isNull;
+
+  /**
     Attribute with undefined attribute types
   */
   attrs = self.typedef "attrs" isAttrs;
