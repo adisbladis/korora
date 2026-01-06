@@ -126,7 +126,7 @@ fix (self: {
 
   # Utility functions
 
-  /**
+  /*
     Declare a custom type using a bool function
   */
   typedef =
@@ -137,7 +137,7 @@ fix (self: {
     assert isFunction verify;
     self.typedef' name (wrapBoolVerify name verify);
 
-  /**
+  /*
     Declare a custom type using an option<str> function.
   */
   typedef' =
@@ -156,92 +156,92 @@ fix (self: {
 
   # Primitive types
 
-  /**
+  /*
     String
   */
   string = self.typedef "string" isString;
 
-  /**
+  /*
     Type alias for string
   */
   str = self.string;
 
-  /**
+  /*
     Any
   */
   any = self.typedef' "any" (_: null);
 
-  /**
+  /*
     Never
   */
   never = self.typedef "never" (_: false);
 
-  /**
+  /*
     Int
   */
   int = self.typedef "int" isInt;
 
-  /**
+  /*
     Single precision floating point
   */
   float = self.typedef "float" isFloat;
 
-  /**
+  /*
     Either an int or a float
   */
   number = self.typedef "number" (v: isInt v || isFloat v);
 
-  /**
+  /*
     Bool
   */
   bool = self.typedef "bool" isBool;
 
-  /**
+  /*
     Null
   */
   null = self.typedef "null" isNull;
 
-  /**
+  /*
     Attribute with undefined attribute types
   */
   attrs = self.typedef "attrs" isAttrs;
 
-  /**
+  /*
     Attribute with undefined element types
   */
   list = self.typedef "list" isList;
 
-  /**
+  /*
     Function
   */
   function = self.typedef "function" isFunction;
 
-  /**
+  /*
     Path
   */
   path = self.typedef "path" isPath;
 
-  /**
+  /*
     Value that may not technically be a path, but has path-like properties
     Either an actual path `./foo`, a derivation, or a string
   */
   pathLike = self.typedef "pathLike" (v: isPath v || isDerivation v || isString v);
 
-  /**
+  /*
     Derivation
   */
   derivation = self.typedef "derivation" isDerivation;
 
   # Polymorphic types
 
-  /**
+  /*
     Type
   */
   type = self.typedef "type" (
     v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify
   );
 
-  /**
+  /*
     Option<t>
   */
   option =
@@ -254,7 +254,7 @@ fix (self: {
     in
     self.typedef' name (v: if v == null then null else withErrorContext (verify v));
 
-  /**
+  /*
     listOf<t>
   */
   listOf =
@@ -267,7 +267,7 @@ fix (self: {
     in
     self.typedef' name (v: if !isList v then typeError name v else withErrorContext (all' verify v));
 
-  /**
+  /*
     listOf<t>
   */
   attrsOf =
@@ -282,7 +282,7 @@ fix (self: {
       v: if !isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v))
     );
 
-  /**
+  /*
     union<types...>
   */
   union =
@@ -295,7 +295,7 @@ fix (self: {
     in
     self.typedef name (v: any (func: func v == null) funcs);
 
-  /**
+  /*
     intersection<types...>
   */
   intersection =
@@ -308,7 +308,7 @@ fix (self: {
     in
     self.typedef name (v: all (func: func v == null) funcs);
 
-  /**
+  /*
     rename<name, type>
 
     Because some polymorphic types such as attrsOf inherits names from it's
@@ -326,7 +326,7 @@ fix (self: {
   */
   rename = name: type: self.typedef' name type.verify;
 
-  /**
+  /*
     struct<name, members...>
 
     #### Example
@@ -489,7 +489,7 @@ fix (self: {
     in
     mkStruct' { };
 
-  /**
+  /*
     optionalAttr<t>
   */
   optionalAttr =
@@ -501,7 +501,7 @@ fix (self: {
     in
     self.typedef' name (v: withErrorContext (verify v));
 
-  /**
+  /*
     enum<name, elems...>
   */
   enum =
@@ -539,7 +539,7 @@ fix (self: {
       else withErrorContext (verifyValue v 0)
     );
 
-  /**
+  /*
     Create a wrapped type checked function.
   */
   defun =

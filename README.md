@@ -113,6 +113,10 @@ Either an int or a float
 
 Bool
 
+## `lib.types.null`
+
+Null
+
 ## `lib.types.attrs`
 
 Attribute with undefined attribute types
@@ -128,6 +132,11 @@ Function
 ## `lib.types.path`
 
 Path
+
+## `lib.types.pathLike`
+
+Value that may not technically be a path, but has path-like properties
+Either an actual path `./foo`, a derivation, or a string
 
 ## `lib.types.derivation`
 
@@ -309,16 +318,37 @@ enum<name, elems...>
 : List of allowable enum members
 
 
+## `lib.types.tuple`
+
+tuple<elems...>
+
+`members`
+
+: List of tuple memeber types
+
 
 ## `lib.types.defun`
 
-defun<name, args, returns, function>
+Create a wrapped type checked function.
 
-#### Example
-``` nix
-let
-  wrappedFunc = types.defun "fn" [ types.str ] types.str (s: s + "-checked");
-in
-  # Returns "foo-checked"
-  wrappedfunc "foo"
-```
+`name`
+
+: Function argument
+
+
+`args`
+
+: Function argument
+
+
+`T`
+
+: Function argument
+
+
+`f`
+
+: Function argument
+
+
+
