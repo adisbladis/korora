@@ -89,6 +89,10 @@ in
         (This means fn is type Val -> String.)
     : multiline
       : If this option is true, the output is indented with newlines for attribute sets and lists
+    : recursivelyMultiline
+      : If this option is true and multiline is also true, subattributes
+        and sublists will be split onto multiple lines as well. This does
+        nothing if multiline is false.
     : indent
       : Initial indentation level
 
@@ -99,11 +103,12 @@ in
     {
       allowPrettyValues ? false,
       multiline ? true,
+      recursivelyMultiline ? true,
       indent ? "",
     }:
     let
       go =
-        indent: v:
+        indent: multiline: v:
         let
           introSpace = if multiline then "\n${indent}  " else " ";
           outroSpace = if multiline then "\n${indent}" else " ";
@@ -160,7 +165,11 @@ in
           if v == [ ] then
             "[ ]"
           else
-            "[" + introSpace + concatMapStringsSep introSpace (go (indent + "  ")) v + outroSpace + "]"
+            "["
+            + introSpace
+            + concatMapStringsSep introSpace (go (indent + "  ") (multiline && recursivelyMultiline)) v
+            + outroSpace
+            + "]"
         else if isFunction v then
           let
             fna = functionArgs v;
@@ -184,7 +193,9 @@ in
               mapAttrsToList (
                 name: value:
                 "${escapeNixIdentifier name} = ${
-                  addErrorContext "while evaluating an attribute `${name}`" (go (indent + "  ") value)
+                  addErrorContext "while evaluating an attribute `${name}`" (
+                    go (indent + "  ") (multiline && recursivelyMultiline) value
+                  )
                 };"
               ) v
             )
@@ -193,6 +204,6 @@ in
         else
           abort "generators.toPretty: should never happen (v = ${v})";
     in
-    go indent;
+    go indent multiline;
 
 }
