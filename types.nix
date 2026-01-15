@@ -528,15 +528,21 @@ fix (self: {
       funcs = map (t: t.verify) members;
       verifyValue =
         v: i:
-        if i == len then null
-        else if (elemAt funcs i) (elemAt v i) != null then ("in element ${toString i}: ${(elemAt funcs i) (elemAt v i)}")
-        else verifyValue v (i + 1);
+        if i == len then
+          null
+        else if (elemAt funcs i) (elemAt v i) != null then
+          ("in element ${toString i}: ${(elemAt funcs i) (elemAt v i)}")
+        else
+          verifyValue v (i + 1);
     in
     self.typedef' name (
       v:
-      if ! isList v then typeError name v
-      else if (length v) != len then "Expected tuple to have length ${toString len} but value '${toPretty v}' has length ${toString (length v)}"
-      else withErrorContext (verifyValue v 0)
+      if !isList v then
+        typeError name v
+      else if (length v) != len then
+        "Expected tuple to have length ${toString len} but value '${toPretty v}' has length ${toString (length v)}"
+      else
+        withErrorContext (verifyValue v 0)
     );
 
   /*
@@ -567,7 +573,5 @@ fix (self: {
         in
         if err != null then throw "${errorPrefix}: while checking return type: ${err}" else value
       )
-      (
-        genList (i: i) (length args)
-      );
+      (genList (i: i) (length args));
 })

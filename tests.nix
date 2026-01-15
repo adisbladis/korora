@@ -522,46 +522,59 @@ lib.fix (
         };
 
         testInvalidLength = {
-          expr = testTuple.verify [];
+          expr = testTuple.verify [ ];
           expected = "Expected tuple to have length 2 but value '[ ]' has length 0";
         };
 
         testInvalidType = {
-          expr = testTuple.verify [ 123 "xyz" ];
+          expr = testTuple.verify [
+            123
+            "xyz"
+          ];
           expected = "in tuple<string, int>: in element 0: Expected type 'string' but value '123' is of type 'int'";
         };
 
         testInvalidTypeTail = {
-          expr = testTuple.verify [ "xyz" "123" ];
+          expr = testTuple.verify [
+            "xyz"
+            "123"
+          ];
           expected = "in tuple<string, int>: in element 1: Expected type 'int' but value '\"123\"' is of type 'string'";
         };
 
         testValid = {
-          expr = testTuple.verify [ "xyz" 123 ];
+          expr = testTuple.verify [
+            "xyz"
+            123
+          ];
           expected = null;
         };
       };
 
-    defun = let
-      fn = types.defun "fn" [ types.str ] types.str (s: s + "-checked");
-    in {
-      testOk = {
-        expr = fn "foo";
-        expected = "foo-checked";
-      };
+    defun =
+      let
+        fn = types.defun "fn" [ types.str ] types.str (s: s + "-checked");
+      in
+      {
+        testOk = {
+          expr = fn "foo";
+          expected = "foo-checked";
+        };
 
-      testWrongArgType = {
-        expr = fn 1;
-        expectedError.type = "ThrownError";
-      };
+        testWrongArgType = {
+          expr = fn 1;
+          expectedError.type = "ThrownError";
+        };
 
-      testWrongArgReturn = let
-        fn = types.defun "fn" [ types.str ] types.str (_: 2);
-      in {
-        expr = fn "foo";
-        expectedError.type = "ThrownError";
+        testWrongArgReturn =
+          let
+            fn = types.defun "fn" [ types.str ] types.str (_: 2);
+          in
+          {
+            expr = fn "foo";
+            expectedError.type = "ThrownError";
+          };
       };
-    };
 
     recursiveTypes = {
       struct =
