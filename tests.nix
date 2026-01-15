@@ -6,7 +6,7 @@
 let
   inherit (lib) toUpper substring stringLength;
 
-  types = import ./default.nix { inherit lib; };
+  types = import ./types.nix;
 
   capitalise = s: toUpper (substring 0 1 s) + (substring 1 (stringLength s) s);
 
