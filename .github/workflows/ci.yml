@@ -18,4 +18,4 @@ jobs:
       - name: Build shell
         run: nix develop -c true
       - name: Run tests
-        run: nix develop -c nix-unit --flake .#libTests
+        run: nix develop -c nix-unit --flake .#libTests --impure

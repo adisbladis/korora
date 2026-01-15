@@ -97,6 +97,24 @@ lib.fix (
       };
     };
 
+    pathLike = {
+      testInvalid = {
+        expr = types.pathLike.verify 1;
+        expected = "Expected type 'pathLike' but value '1' is of type 'int'";
+      };
+
+      testPath = {
+        expr = types.pathLike.verify ./.;
+        expected = null;
+      };
+      # I'd like to add testDerivation, but the tests dont like needing
+      # <nixpkgs>
+      testString = {
+        expr = types.pathLike.verify "example string";
+        expected = null;
+      };
+    };
+
     derivation = {
       testInvalid = {
         expr = types.derivation.verify { };
@@ -178,6 +196,18 @@ lib.fix (
 
       testValid = {
         expr = types.bool.verify true;
+        expected = null;
+      };
+    };
+
+    null = {
+      testInvalid = {
+        expr = types.null.verify "x";
+        expected = "Expected type 'null' but value '\"x\"' is of type 'string'";
+      };
+
+      testValid = {
+        expr = types.null.verify null;
         expected = null;
       };
     };
