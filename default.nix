@@ -1,6 +1,6 @@
 # Previously nixpkgs lib was required for import.
 # This retains the same interface.
-builtins.warn ''
+(builtins.warn or builtins.trace) ''
   Importing korora through the default.nix entrypoint is deprecated.
   Instead import it through types.nix without passing any function arguments:
 

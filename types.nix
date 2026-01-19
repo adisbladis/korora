@@ -84,7 +84,7 @@ let
 
   joinKeys = list: concatStringsSep ", " (map (e: "'${e}'") list);
 
-  toPretty = (import ./lib.nix).toPretty { indent = "    "; };
+  toPretty = (import ./lib.nix).toPretty { indent = "  "; };
 
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
 
@@ -331,8 +331,11 @@ fix (self: {
 
     #### Example
     ``` nix
-    korora.struct "myStruct" {
-      foo = types.string;
+    korora.struct {
+      name = "myStruct";
+      types = {
+        foo = types.string;
+      };
     }
     ```
 
@@ -342,9 +345,12 @@ fix (self: {
 
     By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
     ``` nix
-    (korora.struct "myStruct" {
-      foo = types.string;
-    }).override { total = false; }
+    korora.struct {
+      name = "myStruct";
+      types = {
+        foo = types.string;
+      };
+    }
     ```
 
     This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
@@ -357,13 +363,17 @@ fix (self: {
 
     - Unknown attribute names
 
-    By default, unknown attribute names are allowed.
+    By default, unknown attribute names are not allowed.
 
-    It is possible to override this by specifying `unknown`.
-    ``` nix
-    (korora.struct "myStruct" {
-      foo = types.string;
-    }).override { unknown = false; }
+    It is possible to override this by specifying `unknown` on struct creation:
+    ```nix
+    korora.struct {
+      name = "myStruct";
+      unknown = true;
+      types = {
+        foo = types.string;
+      };
+    }
     ```
 
     This means that
@@ -373,7 +383,7 @@ fix (self: {
       baz = "hello";
     }
     ```
-    is normally valid, but not when `unknown` is set to `false`.
+    is normally invalid, but works when `unknown` is set to `true`.
 
     Because Nix lacks primitive operations to iterate over attribute sets dynamically without
     allocation this function allocates one intermediate attribute set per struct verification.
@@ -382,76 +392,143 @@ fix (self: {
 
     Custom struct verification functions can be added as such:
     ``` nix
-    (types.struct "testStruct2" {
-      x = types.int;
-      y = types.int;
-    }).override {
+    korora.struct {
+      name = "testStruct2";
       verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
-    };
+      types = {
+        x = types.int;
+        y = types.int;
+      };
+    }
     ```
+
+    - Overridability
+
+    An existing struct can have its behavior changed, by using `.override` like so:
+    ```nix
+    let
+      # total is true by default
+      myStruct = korora.struct {
+        name = "myStruct";
+        types = {
+          foo = types.string;
+        };
+      };
+    in
+      myStruct.override { total = false; }
+    ```
+
+    This allows overriding `total`, `unknown`, and `verify` after the fact.
 
     #### Function signature
   */
-  struct =
-    # Name of struct type as a string
-    name:
-    # Attribute set of type definitions.
-    members:
-    assert isAttrs members;
-    let
-      names = attrNames members;
-      withErrorContext = addErrorContext "in struct '${name}'";
 
-      mkStruct' =
-        {
-          total ? true,
-          unknown ? true,
-          verify ? null,
-        }:
-        assert isBool total;
-        assert isBool unknown;
-        assert verify != null -> isFunction verify;
-        let
-          optionalFuncs =
-            optionalElem (!unknown) (
+  struct =
+    args:
+    let
+      name = args.name;
+      types = args.types;
+      total = args.total or true;
+      unknown = args.unknown or false;
+      verify = args.verify or null;
+
+      names = attrNames types;
+      withErrorContext = addErrorContext "in struct '${name}'";
+    in
+    # Old version of the function took two args, for name and type. To give a
+    # custom error, allow the function to take another arg if the first arg is a
+    # string (since they're passing a name)
+    if isString args then
+      types:
+      abort ''
+
+        Struct wth name '${args}' uses the old struct API, and needs to be rewritten.
+        Given the old format:
+
+        types.struct "example" {
+          foo = types.int;
+        }
+
+        This should be rewritten to:
+
+        types.struct {
+          name = "example";
+          types = {
+            foo = types.int;
+          };
+        }
+      ''
+    else
+      let
+        mkStruct' =
+          {
+            total ? true,
+            unknown ? false,
+            verify ? null,
+          }:
+          assert isBool total;
+          assert isBool unknown;
+          assert verify != null -> isFunction verify;
+          let
+            optionalFuncs =
+              optionalElem (!unknown) (
+                v:
+                if removeAttrs v names == { } then
+                  null
+                else
+                  "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
+              )
+              ++ optionalElem (verify != null) verify;
+
+            # Turn member verifications into a list of verification functions with their verify functions
+            # already looked up & with error contexts already computed.
+            verifyAttrs =
+              let
+                funcs = map (
+                  attr:
+                  let
+                    memberType = types.${attr};
+                    inherit (memberType) verify;
+                    withErrorContext = addErrorContext "in member '${attr}'";
+                    missingMember = "missing member '${attr}'";
+                    isOptionalAttr = memberType.__name == "optionalAttr";
+                  in
+                  v:
+                  (
+                    if v ? ${attr} then
+                      withErrorContext (verify v.${attr})
+                    else if total && (!isOptionalAttr) then
+                      missingMember
+                    else
+                      null
+                  )
+                ) names;
+              in
               v:
-              if removeAttrs v names == { } then
+              if all (func: func v == null) funcs then
                 null
               else
-                "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
-            )
-            ++ optionalElem (verify != null) verify;
+                (
+                  # If an error was found, run the checks again to find the first error to return.
+                  foldl' (
+                    acc: func:
+                    if acc != null then
+                      acc
+                    else if func v != null then
+                      func v
+                    else
+                      null
+                  ) null funcs
+                );
 
-          # Turn member verifications into a list of verification functions with their verify functions
-          # already looked up & with error contexts already computed.
-          verifyAttrs =
-            let
-              funcs = map (
-                attr:
+            verify' =
+              if optionalFuncs == [ ] then
+                verifyAttrs
+              else
                 let
-                  memberType = members.${attr};
-                  inherit (memberType) verify;
-                  withErrorContext = addErrorContext "in member '${attr}'";
-                  missingMember = "missing member '${attr}'";
-                  isOptionalAttr = memberType.__name == "optionalAttr";
+                  allFuncs = [ verifyAttrs ] ++ optionalFuncs;
                 in
                 v:
-                (
-                  if v ? ${attr} then
-                    withErrorContext (verify v.${attr})
-                  else if total && (!isOptionalAttr) then
-                    missingMember
-                  else
-                    null
-                )
-              ) names;
-            in
-            v:
-            if all (func: func v == null) funcs then
-              null
-            else
-              (
-                # If an error was found, run the checks again to find the first error to return.
                 foldl' (
                   acc: func:
                   if acc != null then
@@ -460,34 +537,15 @@ fix (self: {
                     func v
                   else
                     null
-                ) null funcs
-              );
+                ) null allFuncs;
 
-          verify' =
-            if optionalFuncs == [ ] then
-              verifyAttrs
-            else
-              let
-                allFuncs = [ verifyAttrs ] ++ optionalFuncs;
-              in
-              v:
-              foldl' (
-                acc: func:
-                if acc != null then
-                  acc
-                else if func v != null then
-                  func v
-                else
-                  null
-              ) null allFuncs;
-
-        in
-        (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
-        // {
-          override = mkStruct';
-        };
-    in
-    mkStruct' { };
+          in
+          (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
+          // {
+            override = mkStruct';
+          };
+      in
+      mkStruct' { inherit total unknown verify; };
 
   /*
     optionalAttr<t>
