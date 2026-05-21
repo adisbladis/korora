@@ -30,6 +30,48 @@ in
 lib.fix (
   self:
   addCoverage types {
+    from = {
+      simple =
+        let type = types.from "0"; in {
+          testValid = { expr = type.verify "0"; expected = null; };
+          testNotValid = { expr = type.verify "1"; expected = "Expected string '\"0\"' but got string '\"1\"'"; };
+        };
+      complex =
+        let type = types.from [ "0" 1 false ]; in {
+          testValid = { expr = type.verify [ "0" 1 false ]; expected = null; };
+          testNotValid = { expr = type.verify [ "0" 1 true ]; expected = "in tuple<0, 1, false>: in element 2: Expected bool 'false' but got bool 'true'"; };
+        };
+    };
+
+    scalar = {
+      int = let type = types.scalar.int 0; in {
+        testValid = { expr = type.verify 0; expected = null; };
+        testNotValid = { expr = type.verify 1; expected = "Expected int '0' but got int '1'"; };
+      };
+      string = let type = types.scalar.string 0; in {
+        testValid = { expr = type.verify 0; expected = null; };
+        testNotValid = { expr = type.verify 1; expected = "Expected string '0' but got int '1'"; };
+      };
+      float = let type = types.scalar.float 0.0; in {
+        testValid = { expr = type.verify 0.0; expected = null; };
+        testNotValid = { expr = type.verify 1.0; expected = "Expected float '0.0' but got float '1.0'"; };
+      };
+    };
+
+    refine =
+      let type = types.refine "GreaterThanFour" types.int (n: n > 4);  in
+      {
+        testValid = { expr = type.verify 5; expected = null; };
+        testNotValid = { expr = type.verify 3; expected = "failed predicate GreaterThanFour"; };
+      };
+
+    refine' =
+      let type = types.refine' "GreaterThanFour" types.int (n: if n > 4 then null else "not greater than four"); in
+      {
+        testValid = { expr = type.verify 5; expected = null; };
+        testNotValid = { expr = type.verify 3; expected = "not greater than four"; };
+      };
+
     string = {
       testInvalid = {
         expr = types.str.verify 1;
@@ -300,12 +342,20 @@ lib.fix (
 
     intersection =
       let
-        struct1 = types.struct "struct1" {
-          a = types.str;
+        struct1 = types.struct {
+          name = "struct1";
+          unknown = true;
+          types = {
+            a = types.str;
+          };
         };
 
-        struct2 = types.struct "struct2" {
-          b = types.str;
+        struct2 = types.struct {
+          name = "struct2";
+          unknown = true;
+          types = {
+            b = types.str;
+          };
         };
 
         testIntersection = types.intersection [
@@ -363,21 +413,33 @@ lib.fix (
 
     struct =
       let
-        testStruct = types.struct "testStruct" {
-          foo = types.string;
+        testStruct = types.struct {
+          name = "testStruct";
+          types = {
+            foo = types.string;
+          };
         };
 
-        testStruct2 =
-          (types.struct "testStruct2" {
+        testStruct2 = types.struct {
+          name = "testStruct2";
+          types = {
             x = types.int;
             y = types.int;
-          }).override
-            {
-              verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
-            };
+          };
+          verify = v: if v.x + v.y == 2 then "VERBOTEN" else "OTHER";
+        };
 
         testStructNonTotal = testStruct.override { total = false; };
-        testStructWithoutUnknown = testStruct.override { unknown = false; };
+        testStructWithUnknown = testStruct.override { unknown = true; };
+        testStructNewVerify = testStruct2.override {
+          verify = v: if v.x + v.y == 3 then "VERBOTEN" else null;
+        };
+
+        doubleOverride =
+          (testStruct2.override {
+            verify = v: "FIRST";
+          }).override
+            { verify = v: "SECOND"; };
 
       in
       {
@@ -394,10 +456,7 @@ lib.fix (
         };
 
         testNonTotal = {
-          expr = testStructNonTotal.verify {
-            foo = "bar";
-            unknown = "is allowed";
-          };
+          expr = testStructNonTotal.verify {};
           expected = null;
         };
 
@@ -409,16 +468,31 @@ lib.fix (
           expected = "in struct 'testStruct2': VERBOTEN";
         };
 
+        testVerifyOverride = {
+          expr = testStructNewVerify.verify {
+            x = 2;
+            y = 1;
+          };
+          expected = "in struct 'testStruct2': VERBOTEN";
+        };
+
+        testDoubleOverride = {
+          expr = doubleOverride.verify {
+            x = 1;
+            y = 2;
+          };
+          expected = "in struct 'testStruct2': SECOND";
+        };
+
         testUnknownAttrNotAllowed = {
-          expr = testStructWithoutUnknown.verify {
+          expr = testStruct.verify {
             foo = "bar";
             bar = "foo";
           };
           expected = "in struct 'testStruct': keys ['bar'] are unrecognized, expected keys are ['foo']";
         };
-
         testUnknownAttr = {
-          expr = testStruct.verify {
+          expr = testStructWithUnknown.verify {
             foo = "bar";
             bar = "foo";
           };
@@ -440,9 +514,12 @@ lib.fix (
 
     optionalAttr =
       let
-        testStruct = types.struct "testOptionalAttrStruct" {
-          foo = types.string;
-          optionalFoo = types.optionalAttr types.string;
+        testStruct = types.struct {
+          name = "testOptionalAttrStruct";
+          types = {
+            foo = types.string;
+            optionalFoo = types.optionalAttr types.string;
+          };
         };
 
       in
@@ -574,13 +651,34 @@ lib.fix (
             expr = fn "foo";
             expectedError.type = "ThrownError";
           };
+
+        testDifferingReturnOk =
+          let
+            fn = types.defun "fn" [ types.str types.int ] types.bool (_: _: true);
+          in
+          {
+            expr = fn "arg1" 2;
+            expected = true;
+          };
+
+        testTwoArgsOk =
+          let
+            fn = types.defun "fn" [ types.str types.int ] types.int (_: _: 2);
+          in
+          {
+            expr = fn "arg1" 2;
+            expected = 2;
+          };
       };
 
     recursiveTypes = {
       struct =
         let
-          recursive = types.struct "recursive" {
-            children = types.optionalAttr (types.attrsOf recursive);
+          recursive = types.struct {
+            name = "recursive";
+            types = {
+              children = types.optionalAttr (types.attrsOf recursive);
+            };
           };
         in
         {
@@ -642,6 +740,59 @@ lib.fix (
               };
             } null;
             expectedError.type = "ThrownError";
+          };
+        };
+    };
+
+    record =
+      let type = types.record "t" { x = types.int; }; in {
+      testOK = {
+        expr = type.verify { x = 0; };
+        expected = null;
+      };
+      testNotOK = {
+        expr = type.check { x = "no"; } null;
+        expectedError.type = "ThrownError";
+      };
+    };
+
+    omit = {
+      simple =
+        let type = types.omit (types.record "aaa" { x = types.int; }); in
+        {
+          testOK = {
+            expr = type.verify 0;
+            expected = null;
+          };
+          test2OK = {
+            expr = type.verify "asdf";
+            expected = null;
+          };
+          test3OK = {
+            expr = type.verify { x = "asdf"; };
+            expected = null;
+          };
+          testNotOK = {
+            expr = type.verify { x = 0; };
+            expected = "aaa forbidden";
+          };
+        };
+
+      complex =
+        let
+          type = types.intersection [
+            (types.record "xint" { x = types.union [ types.int types.str ]; })
+            (types.omit (types.record "xint" { x = types.int; }))
+          ];
+        in
+        {
+          testOK = {
+            expr = type.verify { x = "hello"; };
+            expected = null;
+          };
+          testNotOK = {
+            expr = type.verify { x = 32; };
+            expected = "Expected type 'intersection<xint,omit<xint>>' but value '{\n    x = 32;\n  }' is of type 'set'";
           };
         };
     };

@@ -75,7 +75,9 @@ let
     foldl'
     elemAt
     length
-    genList
+    mapAttrs
+    stringLength
+    match
     ;
 
   isDerivation = value: isAttrs value && (value.type or null == "derivation");
@@ -84,7 +86,12 @@ let
 
   joinKeys = list: concatStringsSep ", " (map (e: "'${e}'") list);
 
-  toPretty = (import ./lib.nix).toPretty { indent = "    "; };
+  lib = import ./lib.nix;
+  toPretty = lib.toPretty {indent = "  ";};
+
+  concatMapAttrsStringSep =
+    sep: f: attrs:
+    concatStringsSep sep (attrValues (mapAttrs f attrs));
 
   typeError = name: v: "Expected type '${name}' but value '${toPretty v}' is of type '${typeOf v}'";
 
@@ -114,6 +121,15 @@ let
 
   addErrorContext = context: error: if error == null then null else "${context}: ${error}";
 
+  scalarName = {
+    int = toString;
+    bool = v: if v then "true" else "false";
+    string = toString;
+    path = toString;
+    null = toString;
+    float = toString;
+  };
+
   fix =
     f:
     let
@@ -121,6 +137,8 @@ let
     in
     x;
 
+
+  isType = t: t ? __name && isString t;
 in
 fix (self: {
 
@@ -159,7 +177,17 @@ fix (self: {
   /*
     String
   */
-  string = self.typedef "string" isString;
+  string = self.typedef "string" isString // {
+    match = regex: self.refine "/${regex}/" self.string (s: match regex s != null);
+    size = {
+      nonEmpty = self.refine "non-empty" self.string (s: s != "");
+      lt = len: self.refine "length<${toString len}" self.string (s: stringLength s < len);
+      gt = len: self.refine "length>${toString len}" self.string (s: stringLength s > len);
+      lte = len: self.refine "length<${toString len}" self.string (s: stringLength s < len);
+      gte = len: self.refine "length>${toString len}" self.string (s: stringLength s > len);
+      between = a: b: self.refine "${toString a}<=length<=${toString b}" self.string (s: a <= stringLength s && stringLength s <= b);
+    };
+  };
 
   /*
     Type alias for string
@@ -179,17 +207,46 @@ fix (self: {
   /*
     Int
   */
-  int = self.typedef "int" isInt;
+  int = self.typedef "int" isInt // {
+    lt = len: self.refine "int<${toString len}" self.int (s: s < len);
+    gt = len: self.refine "int>${toString len}" self.int (s: s > len);
+    lte = len: self.refine "int<${toString len}" self.int (s: s < len);
+    gte = len: self.refine "int>${toString len}" self.int (s: s > len);
+    between = a: b: self.refine "${toString a}<=int<=${toString b}" self.int (s: a <= s && s <= b);
+    even = self.refine "even" self.int (n: n == (n / 2) * 2);
+    odd = self.refine "odd" self.int (n: n != (n / 2) * 2);
+    positive = self.refine "positive" self.int (n: n > 0);
+    nonNegative = self.refine "nonNegative" self.int (n: n >= 0);
+    negative = self.refine "positive" self.int (n: n < 0);
+  };
 
   /*
     Single precision floating point
   */
-  float = self.typedef "float" isFloat;
+  float = self.typedef "float" isFloat // {
+    lt = len: self.refine "float<${toString len}" self.float (s: s < len);
+    gt = len: self.refine "float>${toString len}" self.float (s: s > len);
+    lte = len: self.refine "float<${toString len}" self.float (s: s < len);
+    gte = len: self.refine "float>${toString len}" self.float (s: s > len);
+    between = a: b: self.refine "${toString a}<=float<=${toString b}" self.float (s: a <= s && s <= b);
+    positive = self.refine "positive" self.float (n: n > 0.0);
+    nonNegative = self.refine "nonNegative" self.float (n: n >= 0.0);
+    negative = self.refine "positive" self.float (n: n < 0.0);
+  };
 
   /*
     Either an int or a float
   */
-  number = self.typedef "number" (v: isInt v || isFloat v);
+  number = self.typedef "number" (v: isInt v || isFloat v) // {
+    lt = len: self.refine "number<${toString len}" self.number (s: s < len);
+    gt = len: self.refine "number>${toString len}" self.number (s: s > len);
+    lte = len: self.refine "number<${toString len}" self.number (s: s < len);
+    gte = len: self.refine "number>${toString len}" self.number (s: s > len);
+    between = a: b: self.refine "${toString a}<=number<=${toString b}" self.number (s: a <= s && s <= b);
+    positive = self.refine "positive" self.number (n: n > 0);
+    nonNegative = self.refine "nonNegative" self.number (n: n >= 0);
+    negative = self.refine "positive" self.number (n: n < 0);
+  };
 
   /*
     Bool
@@ -283,6 +340,22 @@ fix (self: {
     );
 
   /*
+    map<k, t>
+  */
+  map =
+    # Attribute value type
+    k: v:
+    let
+      name = "map<${k.name}, ${v.name}>";
+      withErrorContext = addErrorContext "in ${name} value";
+    in
+    self.typedef' name (v:
+      if !isAttrs v then
+        typeError name v
+      else
+        withErrorContext (all' k.verify (attrNames v) && all' v.verify (attrValues v))
+    );
+  /*
     union<types...>
   */
   union =
@@ -331,8 +404,11 @@ fix (self: {
 
     #### Example
     ``` nix
-    korora.struct "myStruct" {
-      foo = types.string;
+    korora.struct {
+      name = "myStruct";
+      types = {
+        foo = types.string;
+      };
     }
     ```
 
@@ -342,9 +418,12 @@ fix (self: {
 
     By default, all attribute names must be present in a struct. It is possible to override this by specifying _totality_. Here is how to do this:
     ``` nix
-    (korora.struct "myStruct" {
-      foo = types.string;
-    }).override { total = false; }
+    korora.struct {
+      name = "myStruct";
+      types = {
+        foo = types.string;
+      };
+    }
     ```
 
     This means that a `myStruct` struct can have any of the keys omitted. Thus these are valid:
@@ -357,13 +436,17 @@ fix (self: {
 
     - Unknown attribute names
 
-    By default, unknown attribute names are allowed.
+    By default, unknown attribute names are not allowed.
 
-    It is possible to override this by specifying `unknown`.
-    ``` nix
-    (korora.struct "myStruct" {
-      foo = types.string;
-    }).override { unknown = false; }
+    It is possible to override this by specifying `unknown` on struct creation:
+    ```nix
+    korora.struct {
+      name = "myStruct";
+      unknown = true;
+      types = {
+        foo = types.string;
+      };
+    }
     ```
 
     This means that
@@ -373,7 +456,7 @@ fix (self: {
       baz = "hello";
     }
     ```
-    is normally valid, but not when `unknown` is set to `false`.
+    is normally invalid, but works when `unknown` is set to `true`.
 
     Because Nix lacks primitive operations to iterate over attribute sets dynamically without
     allocation this function allocates one intermediate attribute set per struct verification.
@@ -382,76 +465,143 @@ fix (self: {
 
     Custom struct verification functions can be added as such:
     ``` nix
-    (types.struct "testStruct2" {
-      x = types.int;
-      y = types.int;
-    }).override {
+    korora.struct {
+      name = "testStruct2";
       verify = v: if v.x + v.y == 2 then "VERBOTEN" else null;
-    };
+      types = {
+        x = types.int;
+        y = types.int;
+      };
+    }
     ```
+
+    - Overridability
+
+    An existing struct can have its behavior changed, by using `.override` like so:
+    ```nix
+    let
+      # total is true by default
+      myStruct = korora.struct {
+        name = "myStruct";
+        types = {
+          foo = types.string;
+        };
+      };
+    in
+      myStruct.override { total = false; }
+    ```
+
+    This allows overriding `total`, `unknown`, and `verify` after the fact.
 
     #### Function signature
   */
-  struct =
-    # Name of struct type as a string
-    name:
-    # Attribute set of type definitions.
-    members:
-    assert isAttrs members;
-    let
-      names = attrNames members;
-      withErrorContext = addErrorContext "in struct '${name}'";
 
-      mkStruct' =
-        {
-          total ? true,
-          unknown ? true,
-          verify ? null,
-        }:
-        assert isBool total;
-        assert isBool unknown;
-        assert verify != null -> isFunction verify;
-        let
-          optionalFuncs =
-            optionalElem (!unknown) (
+  struct =
+    args:
+    let
+      name = args.name;
+      types = args.types;
+      total = args.total or true;
+      unknown = args.unknown or false;
+      verify = args.verify or null;
+
+      names = attrNames types;
+      withErrorContext = addErrorContext "in struct '${name}'";
+    in
+    # Old version of the function took two args, for name and type. To give a
+    # custom error, allow the function to take another arg if the first arg is a
+    # string (since they're passing a name)
+    if isString args then
+      types:
+      abort ''
+
+        Struct wth name '${args}' uses the old struct API, and needs to be rewritten.
+        Given the old format:
+
+        types.struct "example" {
+          foo = types.int;
+        }
+
+        This should be rewritten to:
+
+        types.struct {
+          name = "example";
+          types = {
+            foo = types.int;
+          };
+        }
+      ''
+    else
+      let
+        mkStruct' =
+          {
+            total ? true,
+            unknown ? false,
+            verify ? null,
+          }:
+          assert isBool total;
+          assert isBool unknown;
+          assert verify != null -> isFunction verify;
+          let
+            optionalFuncs =
+              optionalElem (!unknown) (
+                v:
+                if removeAttrs v names == { } then
+                  null
+                else
+                  "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
+              )
+              ++ optionalElem (verify != null) verify;
+
+            # Turn member verifications into a list of verification functions with their verify functions
+            # already looked up & with error contexts already computed.
+            verifyAttrs =
+              let
+                funcs = map (
+                  attr:
+                  let
+                    memberType = types.${attr};
+                    inherit (memberType) verify;
+                    withErrorContext = addErrorContext "in member '${attr}'";
+                    missingMember = "missing member '${attr}'";
+                    isOptionalAttr = memberType.__name == "optionalAttr";
+                  in
+                  v:
+                  (
+                    if v ? ${attr} then
+                      withErrorContext (verify v.${attr})
+                    else if total && (!isOptionalAttr) then
+                      missingMember
+                    else
+                      null
+                  )
+                ) names;
+              in
               v:
-              if removeAttrs v names == { } then
+              if all (func: func v == null) funcs then
                 null
               else
-                "keys [${joinKeys (attrNames (removeAttrs v names))}] are unrecognized, expected keys are [${joinKeys names}]"
-            )
-            ++ optionalElem (verify != null) verify;
+                (
+                  # If an error was found, run the checks again to find the first error to return.
+                  foldl' (
+                    acc: func:
+                    if acc != null then
+                      acc
+                    else if func v != null then
+                      func v
+                    else
+                      null
+                  ) null funcs
+                );
 
-          # Turn member verifications into a list of verification functions with their verify functions
-          # already looked up & with error contexts already computed.
-          verifyAttrs =
-            let
-              funcs = map (
-                attr:
+            verify' =
+              if optionalFuncs == [ ] then
+                verifyAttrs
+              else
                 let
-                  memberType = members.${attr};
-                  inherit (memberType) verify;
-                  withErrorContext = addErrorContext "in member '${attr}'";
-                  missingMember = "missing member '${attr}'";
-                  isOptionalAttr = memberType.__name == "optionalAttr";
+                  allFuncs = [ verifyAttrs ] ++ optionalFuncs;
                 in
                 v:
-                (
-                  if v ? ${attr} then
-                    withErrorContext (verify v.${attr})
-                  else if total && (!isOptionalAttr) then
-                    missingMember
-                  else
-                    null
-                )
-              ) names;
-            in
-            v:
-            if all (func: func v == null) funcs then
-              null
-            else
-              (
-                # If an error was found, run the checks again to find the first error to return.
                 foldl' (
                   acc: func:
                   if acc != null then
@@ -460,35 +610,47 @@ fix (self: {
                     func v
                   else
                     null
-                ) null funcs
-              );
+                ) null allFuncs;
 
-          verify' =
-            if optionalFuncs == [ ] then
-              verifyAttrs
-            else
-              let
-                allFuncs = [ verifyAttrs ] ++ optionalFuncs;
-              in
-              v:
-              foldl' (
-                acc: func:
-                if acc != null then
-                  acc
-                else if func v != null then
-                  func v
-                else
-                  null
-              ) null allFuncs;
+          in
+          (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
+          // {
+            override = mkStruct';
+          };
+      in
+      mkStruct' { inherit total unknown verify; };
 
-        in
-        (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
-        // {
-          override = mkStruct';
-        };
-    in
-    mkStruct' { };
 
+  /*
+    Another interface for defining records
+
+    record<name, types> - strict record; no unknown elements
+    record.partial<name, types> - record which allows missing keys
+    record.extensible<name, types> - record which allows unknown keys
+    record.loose<name, types> - record which allows missing keys and unknown keys
+  */
+  record = {
+    __functor = _: name: types: self.struct {
+      inherit name types;
+      total = true;
+      unknown = false;
+    };
+    partial = name: types: self.struct {
+      inherit name types;
+      total = false;
+      unknown = false;
+    };
+    extensible = name: types: self.struct {
+      inherit name types;
+      total = true;
+      unknown = true;
+    };
+    loose = name: types: self.struct {
+      inherit name types;
+      total = false;
+      unknown = false;
+    };
+  };
   /*
     optionalAttr<t>
   */
@@ -546,32 +708,101 @@ fix (self: {
     );
 
   /*
+    scalar.int
+    scalar.bool
+    scalar.string
+    scalar.path
+    scalar.null
+    scalar.float
+
+    Attrset of types to check functions (returns bool for success) that a scalar
+    literal matches for that type
+   */
+  scalar = mapAttrs (k: checkFn: type:
+    self.typedef'
+      (scalarName.${k} type)
+      (v: if checkFn type v then null else "Expected ${k} '${toPretty type}' but got ${typeOf v} '${toPretty v}'")
+  ) {
+    int = type: value: type == value;
+    bool = type: value: type == value;
+    string = type: value: type == value;
+    path = type: value: type == value;
+    null = type: value: type == value;
+    float = type: value: type == value;
+  };
+
+  /*
+    from<value>
+
+    Build a type from a literal input
+  */
+  from = value:
+    if value ? name then
+      value
+    else
+      let t = typeOf value; in
+      if self.scalar ? ${t} then
+        self.scalar.${t} value
+      else if t == "lambda" then
+        self.typedef' "lambda" (v: (self.from (value v)).verify)
+      else if t == "set" then
+        let
+          value_ = mapAttrs (_: self.from) value;
+        in
+          self.struct {
+            name = "{${concatMapAttrsStringSep ";" (k: v: "${k}=${v.name}}") value_}";
+            total = true;
+            unknown = false;
+            types = value_;
+          }
+      else if t == "list" then
+        self.tuple (map self.from value)
+      else
+        throw "check: cannot handle ${value} :: ${t}";
+
+  /*
+    refine'<name, T, refinement>
+
+    Create a refinement over a given verify function
+  */
+  refine' =
+    name: T: refinement:
+    self.typedef' name (v: let err1 = T.verify v; in if err1 == null then refinement v else err1);
+
+  /*
+    Create a refinement over a given check function
+  */
+  refine = name: T: predicate:
+    self.refine' name T (v: if predicate v then null else "failed predicate ${name}");
+
+  /*
+    Refuse to accept the given type
+  */
+  omit = T:
+    self.typedef' "omit<${T.name}>" (v: let err = T.verify v; in if err == null then "${T.name} forbidden" else null);
+
+  /*
     Create a wrapped type checked function.
   */
   defun =
     name: args: T: f:
     let
       errorPrefix = "while calling '${name}'";
-    in
-    foldl'
-      (
-        fun: idx:
-        let
-          type = elemAt args idx;
-        in
-        value:
-        if type.verify value != null then
-          throw "${errorPrefix}: while checking argument ${toString idx}: ${type.verify value}"
+      len = length args;
+      run = idx: partial:
+        if idx < len then
+          arg:
+          let err = (elemAt args idx).verify arg; in
+          if err != null then
+            throw "${errorPrefix}: while checking argument ${toString idx}: ${err}"
+          else
+            run (idx + 1) (partial arg)
         else
-          fun value
-      )
-      (
-        arg:
-        let
-          value = f arg;
-          err = T.verify value;
-        in
-        if err != null then throw "${errorPrefix}: while checking return type: ${err}" else value
-      )
-      (genList (i: i) (length args));
+          let err = T.verify partial; in
+          if err != null then
+            throw "${errorPrefix}: while checking return type: ${err}"
+          else
+            partial;
+    in
+      run 0 f;
 })
