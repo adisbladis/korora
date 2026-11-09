@@ -237,12 +237,12 @@ fix (self: {
   /*
     Type
   */
-  type = self.typedef "type" (
-    v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify
-  );
+  type = self.typedef "type" (import ./lib.nix).isType;
 
   /*
     Option<t>
+
+    The type exposes `elementType`, the type `t`.
   */
   option =
     # Null or t
@@ -252,10 +252,15 @@ fix (self: {
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name}";
     in
-    self.typedef' name (v: if v == null then null else withErrorContext (verify v));
+    self.typedef' name (v: if v == null then null else withErrorContext (verify v))
+    // {
+      elementType = t;
+    };
 
   /*
     listOf<t>
+
+    The type exposes `elementType`, the element type `t`.
   */
   listOf =
     # Element type
@@ -265,10 +270,15 @@ fix (self: {
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name} element";
     in
-    self.typedef' name (v: if !isList v then typeError name v else withErrorContext (all' verify v));
+    self.typedef' name (v: if !isList v then typeError name v else withErrorContext (all' verify v))
+    // {
+      elementType = t;
+    };
 
   /*
-    listOf<t>
+    attrsOf<t>
+
+    The type exposes `elementType`, the attribute value type `t`.
   */
   attrsOf =
     # Attribute value type
@@ -280,10 +290,15 @@ fix (self: {
     in
     self.typedef' name (
       v: if !isAttrs v then typeError name v else withErrorContext (all' verify (attrValues v))
-    );
+    )
+    // {
+      elementType = t;
+    };
 
   /*
     union<types...>
+
+    The type exposes `types`, the list of types.
   */
   union =
     # Any of <t>
@@ -293,10 +308,15 @@ fix (self: {
       name = "union<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
     in
-    self.typedef name (v: any (func: func v == null) funcs);
+    self.typedef name (v: any (func: func v == null) funcs)
+    // {
+      inherit types;
+    };
 
   /*
     intersection<types...>
+
+    The type exposes `types`, the list of types.
   */
   intersection =
     # All of <t>
@@ -306,13 +326,19 @@ fix (self: {
       name = "intersection<${concatStringsSep "," (map (t: t.name) types)}>";
       funcs = map (t: t.verify) types;
     in
-    self.typedef name (v: all (func: func v == null) funcs);
+    self.typedef name (v: all (func: func v == null) funcs)
+    // {
+      inherit types;
+    };
 
   /*
     rename<name, type>
 
     Because some polymorphic types such as attrsOf inherits names from it's
     sub-types we need to erase the name to not cause infinite recursion.
+
+    The renamed type keeps the attributes of `type` (such as `members` or `elementType`).
+    Its `override`, if `type` has one, keeps the new name.
 
     #### Example:
     ``` nix
@@ -324,7 +350,11 @@ fix (self: {
     );
     ```
   */
-  rename = name: type: self.typedef' name type.verify;
+  rename =
+    name: type:
+    type
+    // self.typedef' name type.verify
+    // (if type ? override then { override = args: self.rename name (type.override args); } else { });
 
   /*
     struct<name, members...>
@@ -374,6 +404,19 @@ fix (self: {
     }
     ```
     is normally valid, but not when `unknown` is set to `false`.
+
+    - Introspection
+
+    The type exposes how it was made:
+
+    - `members`: the attribute set of member types.
+    - `total`: `true` when every member must be present (the default), `false` when any may be
+      left out. A member of type `optionalAttr` may always be left out.
+    - `unknown`: `true` when attribute names that are not members are allowed (the default),
+      `false` when they are an error.
+
+    A tool can read them to document a struct or to export it to another schema language,
+    without parsing the type's name.
 
     Because Nix lacks primitive operations to iterate over attribute sets dynamically without
     allocation this function allocates one intermediate attribute set per struct verification.
@@ -484,6 +527,7 @@ fix (self: {
         in
         (self.typedef' name (v: withErrorContext (if !isAttrs v then typeError name v else verify' v)))
         // {
+          inherit members total unknown;
           override = mkStruct';
         };
     in
@@ -491,6 +535,8 @@ fix (self: {
 
   /*
     optionalAttr<t>
+
+    The type exposes `elementType`, the type `t`.
   */
   optionalAttr =
     t:
@@ -499,10 +545,15 @@ fix (self: {
       inherit (t) verify;
       withErrorContext = addErrorContext "in ${name}";
     in
-    self.typedef' name (v: withErrorContext (verify v));
+    self.typedef' name (v: withErrorContext (verify v))
+    // {
+      elementType = t;
+    };
 
   /*
     enum<name, elems...>
+
+    The type exposes `elements`, the list of allowed values.
   */
   enum =
     # Name of enum type as a string
@@ -512,10 +563,15 @@ fix (self: {
     assert isList elems;
     self.typedef' name (
       v: if elem v elems then null else "'${toPretty v}' is not a member of enum '${name}'"
-    );
+    )
+    // {
+      elements = elems;
+    };
 
   /*
     tuple<elems...>
+
+    The type exposes `members`, the list of member types.
   */
   tuple =
     # List of tuple memeber types
@@ -543,7 +599,10 @@ fix (self: {
         "Expected tuple to have length ${toString len} but value '${toPretty v}' has length ${toString (length v)}"
       else
         withErrorContext (verifyValue v 0)
-    );
+    )
+    // {
+      inherit members;
+    };
 
   /*
     Create a wrapped type checked function.

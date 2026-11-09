@@ -67,9 +67,13 @@ let
     # Regex from https://github.com/NixOS/nix/blob/d048577909e383439c2549e849c5c2f2016c997e/src/libexpr/lexer.l#L91
     if match "[a-zA-Z_][a-zA-Z0-9_'-]*" s != null then s else escapeNixString s;
 
+  # A Korora type: an attribute set with a string `name` and a `verify` function.
+  isType = v: isAttrs v && v ? name && isString v.name && v ? verify && isFunction v.verify;
+
 in
 
 {
+  inherit isType;
 
   /**
     Pretty print a value, akin to `builtins.trace`.
@@ -186,6 +190,10 @@ in
             "{ }"
           else if v ? type && v.type == "derivation" then
             "<derivation ${v.name or "???"}>"
+          # A Korora type: its name, not its fields. A composite type exposes the types it is
+          # made of (elementType, members, types), so walking a recursive type would never end.
+          else if isType v then
+            "<type ${v.name}>"
           else
             "{"
             + introSpace

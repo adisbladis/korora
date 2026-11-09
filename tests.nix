@@ -255,6 +255,11 @@ lib.fix (
           expr = testListOf.verify 1;
           expected = "Expected type 'listOf<string>' but value '1' is of type 'int'";
         };
+
+        testElementType = {
+          expr = testListOf.elementType.name;
+          expected = "string";
+        };
       };
 
     attrsOf =
@@ -280,6 +285,11 @@ lib.fix (
           expr = testAttrsOf.verify 1;
           expected = "Expected type 'attrsOf<string>' but value '1' is of type 'int'";
         };
+
+        testElementType = {
+          expr = testAttrsOf.elementType.name;
+          expected = "string";
+        };
       };
 
     union =
@@ -295,6 +305,11 @@ lib.fix (
         testInvalid = {
           expr = testUnion.verify 1;
           expected = "Expected type 'union<string>' but value '1' is of type 'int'";
+        };
+
+        testTypes = {
+          expr = map (t: t.name) testUnion.types;
+          expected = [ "string" ];
         };
       };
 
@@ -325,6 +340,14 @@ lib.fix (
         testInvalid = {
           expr = testIntersection.verify 1;
           expected = "Expected type 'intersection<struct1,struct2>' but value '1' is of type 'int'";
+        };
+
+        testTypes = {
+          expr = map (t: t.name) testIntersection.types;
+          expected = [
+            "struct1"
+            "struct2"
+          ];
         };
       };
 
@@ -358,6 +381,11 @@ lib.fix (
         testInvalid = {
           expr = testOption.verify 3;
           expected = "in option<string>: Expected type 'string' but value '3' is of type 'int'";
+        };
+
+        testElementType = {
+          expr = testOption.elementType.name;
+          expected = "string";
         };
       };
 
@@ -436,6 +464,36 @@ lib.fix (
           };
           expected = "in struct 'testStruct': in member 'foo': Expected type 'string' but value '1' is of type 'int'";
         };
+
+        testMembers = {
+          expr = builtins.mapAttrs (_: t: t.name) testStruct2.members;
+          expected = {
+            x = "int";
+            y = "int";
+          };
+        };
+
+        testTotal = {
+          expr = [
+            testStruct.total
+            testStructNonTotal.total
+          ];
+          expected = [
+            true
+            false
+          ];
+        };
+
+        testUnknown = {
+          expr = [
+            testStruct.unknown
+            testStructWithoutUnknown.unknown
+          ];
+          expected = [
+            true
+            false
+          ];
+        };
       };
 
     optionalAttr =
@@ -469,6 +527,11 @@ lib.fix (
           };
           expected = "in struct 'testOptionalAttrStruct': in member 'optionalFoo': in optionalAttr<string>: Expected type 'string' but value '1234' is of type 'int'";
         };
+
+        testElementType = {
+          expr = testStruct.members.optionalFoo.elementType.name;
+          expected = "string";
+        };
       };
 
     enum =
@@ -489,6 +552,15 @@ lib.fix (
           expr = testEnum.verify "nope";
           expected = "'\"nope\"' is not a member of enum 'testEnum'";
         };
+
+        testElements = {
+          expr = testEnum.elements;
+          expected = [
+            "A"
+            "B"
+            "C"
+          ];
+        };
       };
 
     rename = {
@@ -506,6 +578,42 @@ lib.fix (
           isFunction = true;
         };
       };
+
+      testRenameKeepsIntrospection =
+        let
+          t = types.rename "florp" (types.struct "s" { a = types.int; });
+        in
+        {
+          expr = {
+            inherit (t) name total unknown;
+            members = builtins.attrNames t.members;
+          };
+          expected = {
+            name = "florp";
+            total = true;
+            unknown = true;
+            members = [ "a" ];
+          };
+        };
+
+      testRenameOverrideKeepsName =
+        let
+          t = (types.rename "florp" (types.struct "s" { a = types.int; })).override { unknown = false; };
+        in
+        {
+          expr = {
+            inherit (t) name unknown;
+            err = t.verify {
+              a = 1;
+              b = 1;
+            };
+          };
+          expected = {
+            name = "florp";
+            unknown = false;
+            err = "in struct 's': keys ['b'] are unrecognized, expected keys are ['a']";
+          };
+        };
     };
 
     tuple =
@@ -548,6 +656,14 @@ lib.fix (
             123
           ];
           expected = null;
+        };
+
+        testMembers = {
+          expr = map (t: t.name) testTuple.members;
+          expected = [
+            "string"
+            "int"
+          ];
         };
       };
 
@@ -600,6 +716,16 @@ lib.fix (
               };
             } null;
             expectedError.type = "ThrownError";
+          };
+
+          # toPretty prints a type as its name: a recursive type exposes itself through
+          # its members, and toPretty has no cycle check (unlike deepSeq).
+          testPrettyRecursive = {
+            expr = (import ./lib.nix).toPretty { multiline = false; } {
+              t = recursive;
+              l = types.listOf types.int;
+            };
+            expected = "{ l = <type listOf<int>>; t = <type recursive>; }";
           };
         };
 
