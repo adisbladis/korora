@@ -150,6 +150,8 @@ Type
 
 Option<t>
 
+The type exposes `elementType`, the type `t`.
+
 `t`
 
 : Null or t
@@ -159,6 +161,8 @@ Option<t>
 
 listOf<t>
 
+The type exposes `elementType`, the element type `t`.
+
 `t`
 
 : Element type
@@ -166,7 +170,9 @@ listOf<t>
 
 ## `lib.types.attrsOf`
 
-listOf<t>
+attrsOf<t>
+
+The type exposes `elementType`, the attribute value type `t`.
 
 `t`
 
@@ -177,6 +183,8 @@ listOf<t>
 
 union<types...>
 
+The type exposes `types`, the list of types.
+
 `types`
 
 : Any of <t>
@@ -185,6 +193,8 @@ union<types...>
 ## `lib.types.intersection`
 
 intersection<types...>
+
+The type exposes `types`, the list of types.
 
 `types`
 
@@ -197,6 +207,9 @@ rename<name, type>
 
 Because some polymorphic types such as attrsOf inherits names from it's
 sub-types we need to erase the name to not cause infinite recursion.
+
+The renamed type keeps the attributes of `type` (such as `members` or `elementType`).
+Its `override`, if `type` has one, keeps the new name.
 
 #### Example:
 ``` nix
@@ -268,6 +281,19 @@ This means that
 ```
 is normally valid, but not when `unknown` is set to `false`.
 
+- Introspection
+
+The type exposes how it was made:
+
+- `members`: the attribute set of member types.
+- `total`: `true` when every member must be present (the default), `false` when any may be
+  left out. A member of type `optionalAttr` may always be left out.
+- `unknown`: `true` when attribute names that are not members are allowed (the default),
+  `false` when they are an error.
+
+A tool can read them to document a struct or to export it to another schema language,
+without parsing the type's name.
+
 Because Nix lacks primitive operations to iterate over attribute sets dynamically without
 allocation this function allocates one intermediate attribute set per struct verification.
 
@@ -299,6 +325,8 @@ Custom struct verification functions can be added as such:
 
 optionalAttr<t>
 
+The type exposes `elementType`, the type `t`.
+
 `t`
 
 : Function argument
@@ -307,6 +335,8 @@ optionalAttr<t>
 ## `lib.types.enum`
 
 enum<name, elems...>
+
+The type exposes `elements`, the list of allowed values.
 
 `name`
 
@@ -321,6 +351,8 @@ enum<name, elems...>
 ## `lib.types.tuple`
 
 tuple<elems...>
+
+The type exposes `members`, the list of member types.
 
 `members`
 
